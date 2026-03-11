@@ -63,10 +63,16 @@ const toEth = (weiValue: string): string => {
   }
 };
 
+const toFixedDecimal = (value: string, decimals: number): string => {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return '0';
+  return parsed.toFixed(decimals);
+};
+
 const toDefaultAdvancedState = (defaults: ForecastDefaults) => ({
-  networkFeeEthPerYear: toEthPerYearFromWeiPerBlock(
-    defaults.networkFeeWei,
-    defaults.blocksPerDay,
+  networkFeeEthPerYear: toFixedDecimal(
+    toEthPerYearFromWeiPerBlock(defaults.networkFeeWei, defaults.blocksPerDay),
+    5,
   ),
   minimumLiquidationCollateralEth: toEth(defaults.minimumLiquidationCollateralWei),
   liquidationThresholdDays: toThresholdDays(
@@ -165,6 +171,14 @@ export function EstimatorForm({ defaults }: EstimatorFormProps) {
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<EstimateResponse | null>(null);
   const manualOperatorRows = useMemo(() => extractOperatorLiveFees(result), [result]);
+  const normalizedOwnerInput = ownerAddress.trim().toLowerCase();
+  const hasBaselineForCurrentOwner =
+    normalizedOwnerInput.length > 0 &&
+    normalizedOwnerInput === lastEstimatedOwner &&
+    manualOperatorRows.length > 0;
+  const manualToggleHint = hasBaselineForCurrentOwner
+    ? 'Manual operator fee override is available for this owner.'
+    : 'To use manual operator fees, first click Calculate estimate for this owner. The toggle unlocks after cluster data is loaded.';
 
   const ownerAddressHint = useMemo(() => {
     const trimmed = ownerAddress.trim();
@@ -204,6 +218,12 @@ export function EstimatorForm({ defaults }: EstimatorFormProps) {
       return next;
     });
   }, [defaults.blocksPerDay, manualOperatorRows]);
+
+  useEffect(() => {
+    if (!hasBaselineForCurrentOwner && manualOperatorFeeOverrideEnabled) {
+      setManualOperatorFeeOverrideEnabled(false);
+    }
+  }, [hasBaselineForCurrentOwner, manualOperatorFeeOverrideEnabled]);
 
   const resetAdvancedToDefaults = () => {
     setNetworkFeeEthPerYear(defaultAdvancedState.networkFeeEthPerYear);
@@ -367,7 +387,10 @@ export function EstimatorForm({ defaults }: EstimatorFormProps) {
   return (
     <div className={styles.layout}>
       <section className={styles.panel}>
-        <h2>Mainnet Cluster ETH Migration Forecast</h2>
+        <div className={styles.sectionHeader}>
+          <p className={styles.sectionEyebrow}>Section 1</p>
+          <h2>Setup</h2>
+        </div>
         <p className={styles.helpText}>{defaults.disclaimerText}</p>
 
         <details className={styles.methodBox}>
@@ -426,19 +449,37 @@ export function EstimatorForm({ defaults }: EstimatorFormProps) {
           </label>
 
           <div className={styles.manualModeBox}>
-            <label className={styles.manualToggleRow}>
-              <input
-                type="checkbox"
-                checked={manualOperatorFeeOverrideEnabled}
-                onChange={(event) =>
-                  setManualOperatorFeeOverrideEnabled(event.target.checked)
-                }
-              />
-              <span>Manual operator fee override</span>
-            </label>
+            <div className={styles.manualToggleRow}>
+              <span className={styles.manualToggleText}>
+                Manual operator fee override
+              </span>
+              <span
+                className={`${styles.switchTooltipWrapper} ${!hasBaselineForCurrentOwner ? styles.switchTooltipWrapper_disabled : ''}`}
+              >
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={manualOperatorFeeOverrideEnabled}
+                  aria-label="Manual operator fee override"
+                  className={`${styles.switchButton} ${manualOperatorFeeOverrideEnabled ? styles.switchButton_on : ''}`}
+                  onClick={() =>
+                    setManualOperatorFeeOverrideEnabled((current) => !current)
+                  }
+                  disabled={!hasBaselineForCurrentOwner}
+                >
+                  <span className={styles.switchKnob} />
+                </button>
+                {!hasBaselineForCurrentOwner ? (
+                  <span role="tooltip" className={styles.switchTooltip}>
+                    {manualToggleHint}
+                  </span>
+                ) : null}
+              </span>
+            </div>
             <small className={styles.fieldHint}>
-              Default mode uses live operator fees. Manual mode is optional and only
-              affects this estimate run.
+              {hasBaselineForCurrentOwner
+                ? 'Default mode uses live operator fees. Manual mode is optional and only affects this estimate run.'
+                : 'Run a baseline estimate first to enable manual operator fee override for this owner.'}
             </small>
 
             {manualOperatorFeeOverrideEnabled ? (
@@ -502,7 +543,7 @@ export function EstimatorForm({ defaults }: EstimatorFormProps) {
             className={styles.toggleAdvanced}
             onClick={() => setShowAdvanced((current) => !current)}
           >
-            {showAdvanced ? 'Hide' : 'Show'} assumption settings
+            {showAdvanced ? 'Hide' : 'Show'} advanced settings
           </button>
 
           {showAdvanced ? (

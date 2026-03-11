@@ -41,6 +41,7 @@ const toResponseCluster = (
   owner: estimate.owner,
   runwayDays: estimate.runwayDays,
   operatorIds: estimate.operatorIds,
+  effectiveBalance: estimate.effectiveBalance,
   validatorCount: estimate.validatorCount,
   breakdown: {
     operatorFeeWeiPerBlock: estimate.breakdown.operatorFeeWeiPerBlock.toString(),
@@ -82,6 +83,7 @@ const estimateCluster = async (
     owner: cluster.owner,
     runwayDays,
     operatorIds: cluster.operatorIds,
+    effectiveBalance: cluster.effectiveBalance,
     validatorCount: cluster.validatorCount,
     breakdown,
     feeSelection: forecastInput.operators,

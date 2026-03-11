@@ -1,3 +1,8 @@
+.resultsSections {
+  display: grid;
+  gap: 1rem;
+}
+
 .panel {
   border: 1px solid var(--panel-border);
   border-radius: 20px;
@@ -7,13 +12,33 @@
   box-shadow: var(--panel-shadow);
 }
 
+.sectionHeader {
+  display: grid;
+  gap: 0.22rem;
+  margin-bottom: 0.85rem;
+}
+
+.sectionEyebrow {
+  margin: 0;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #34638d;
+}
+
+.sectionHeader h3 {
+  margin: 0;
+  font-size: 1.18rem;
+}
+
 .stateText,
 .errorText {
   color: var(--muted);
   line-height: 1.62;
+  margin: 0;
 }
 
-.emptyTitle,
 .errorTitle {
   margin: 0 0 0.55rem;
   font-size: 1.02rem;
@@ -45,21 +70,31 @@
   color: #254f7a;
 }
 
-.summary {
+.summaryTop {
   display: grid;
-  gap: 0.45rem;
-  margin-bottom: 1rem;
-}
-
-.summary h3 {
-  margin: 0;
-  font-size: 1.15rem;
+  gap: 0.6rem;
+  margin-bottom: 0.95rem;
 }
 
 .summaryTitle {
+  margin: 0;
   display: inline-flex;
   align-items: center;
-  gap: 0.4rem;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  font-size: 1.18rem;
+}
+
+.summaryMetrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 0.45rem;
+}
+
+.summaryMetrics p {
+  margin: 0;
+  color: var(--muted-strong);
+  font-size: 0.88rem;
 }
 
 .infoTooltip {
@@ -90,7 +125,7 @@
   left: calc(100% + 8px);
   top: 50%;
   transform: translateY(-50%);
-  width: min(420px, 78vw);
+  width: min(440px, 80vw);
   background: #0f2c4a;
   color: #ecf4ff;
   border-radius: 10px;
@@ -110,39 +145,8 @@
   opacity: 1;
 }
 
-.summary p {
-  margin: 0;
-  color: var(--muted-strong);
-}
-
-.summaryHint {
-  font-size: 0.82rem;
-  color: var(--muted);
-}
-
-.yearlySummary {
-  display: grid;
-  gap: 0.22rem;
-  font-size: 0.82rem;
-}
-
-.yearlySummary p {
-  margin: 0;
-  color: var(--muted-strong);
-}
-
-.manualModeTag {
-  font-size: 0.8rem;
-  color: #8a5a15;
-  background: #fff7e7;
-  border: 1px solid #f0d09a;
-  border-radius: 10px;
-  padding: 0.38rem 0.5rem;
-}
-
 .tableWrap {
   overflow-x: auto;
-  margin-bottom: 1rem;
   border: 1px solid #d4e3f2;
   border-radius: 12px;
   background: #ffffff;
@@ -150,6 +154,7 @@
 
 .table {
   width: 100%;
+  min-width: 1120px;
   border-collapse: collapse;
   font-size: 0.88rem;
 }
@@ -160,6 +165,7 @@
   border-bottom: 1px solid #e2edf7;
   padding: 0.62rem;
   vertical-align: top;
+  white-space: nowrap;
 }
 
 .table thead th {
@@ -174,11 +180,13 @@
   border-bottom: none;
 }
 
-.code {
+.codeCell {
+  min-width: 580px;
+  max-width: 760px;
   font-family: var(--font-code);
-  max-width: 320px;
-  word-break: break-all;
   color: #234f79;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .cards {
@@ -187,10 +195,13 @@
 }
 
 .breakdownCard {
-  border: 1px solid #d6e4f2;
+  border: 1px solid #c3d7eb;
   border-radius: 14px;
-  background: #ffffff;
+  background: linear-gradient(180deg, #ffffff 0%, #fcfeff 100%);
   padding: 0.85rem;
+  box-shadow:
+    inset 0 1px 0 #edf4fb,
+    0 8px 16px rgb(20 56 88 / 8%);
 }
 
 .cardHeader {
@@ -212,7 +223,7 @@
 .operationalGrid {
   display: grid;
   gap: 0.7rem;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
 }
 
 .primaryGrid dt,
@@ -233,6 +244,7 @@
 }
 
 .operationalGrid {
+  margin-top: 0.75rem;
   padding: 0.72rem;
   border: 1px solid #e2edf8;
   border-radius: 12px;
@@ -327,71 +339,53 @@
   font-family: var(--font-code);
 }
 
-.configBox {
-  margin-top: 1rem;
-  border: 1px dashed #c8ddef;
-  border-radius: 12px;
-  padding: 0.78rem;
-  background: #fbfdff;
-}
-
-.configBox summary {
-  cursor: pointer;
-  font-weight: 650;
-  color: #2d5a84;
-  margin-bottom: 0.5rem;
-}
-
-.configBox ul {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-  display: grid;
-  gap: 0.5rem;
-  font-family: var(--font-code);
-  font-size: 0.78rem;
-}
-
-.checklistBox {
-  margin-top: 1rem;
+.assumptionsBox,
+.notesBox {
   border: 1px solid #d7e5f2;
   border-radius: 12px;
   background: #f9fcff;
   padding: 0.8rem;
+  height: 100%;
 }
 
-.checklistBox h4 {
-  margin: 0 0 0.5rem;
-  font-size: 0.9rem;
-  color: #295881;
+.assumptionsBox h4,
+.notesBox h4 {
+  margin: 0 0 0.56rem;
+  color: #2f5f87;
 }
 
-.checklistBox ul {
+.assumptionsBox ul,
+.notesBox ul {
   margin: 0;
-  padding-left: 1rem;
+  padding-left: 1.05rem;
   display: grid;
-  gap: 0.38rem;
-  font-size: 0.82rem;
+  gap: 0.42rem;
   color: var(--muted-strong);
+  font-size: 0.84rem;
 }
 
-@media (max-width: 720px) {
+.bottomGrid {
+  margin-top: 1rem;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1rem;
+}
+
+@media (min-width: 960px) {
+  .bottomGrid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 700px) {
   .infoTooltipContent {
     left: 0;
     top: calc(100% + 8px);
     transform: none;
-    width: min(320px, 85vw);
+    width: min(290px, 85vw);
   }
 
-  .sourceRow {
-    grid-template-columns: 1fr;
-    gap: 0.3rem;
-    border: 1px solid #e3edf7;
-    border-radius: 8px;
-    padding: 0.42rem;
-  }
-
-  .sourceFee {
-    justify-self: start;
+  .codeCell {
+    min-width: 430px;
   }
 }

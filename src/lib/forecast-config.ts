@@ -34,15 +34,15 @@ const createForecastConfig = (): ForecastConfig => {
     defaultRunwayDays: parseNumberEnv('DEFAULT_RUNWAY_DAYS', 365),
     forecastEthNetworkFeeWei: parseBigIntEnv(
       'FORECAST_ETH_NETWORK_FEE_WEI',
-      1000000000n,
+      3558582689n,
     ),
     forecastMinimumLiquidationCollateralWei: parseBigIntEnv(
       'FORECAST_MINIMUM_LIQUIDATION_COLLATERAL_WEI',
-      1000000000000000000n,
+      644900000000000n,
     ),
     forecastLiquidationThreshold: parseBigIntEnv(
       'FORECAST_LIQUIDATION_THRESHOLD',
-      214800n,
+      21480n,
     ),
     assumptionsLabel:
       process.env.FORECAST_ASSUMPTIONS_LABEL || DEFAULT_ASSUMPTIONS_LABEL,

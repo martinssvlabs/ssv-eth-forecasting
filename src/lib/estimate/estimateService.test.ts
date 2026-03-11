@@ -33,6 +33,25 @@ const mockDataSource: ForecastDataSource = {
 };
 
 describe('estimateByOwnerAddress', () => {
+  it('uses the corrected ETH liquidation defaults when no overrides are provided', async () => {
+    const result = await estimateByOwnerAddress(
+      '0x000000000000000000000000000000000000dead',
+      30,
+      undefined,
+      mockDataSource,
+    );
+
+    expect(result.configUsed.minimumLiquidationCollateralWei).toBe('644900000000000');
+    expect(result.configUsed.liquidationThreshold).toBe('21480');
+    expect(result.clusters[0].breakdown.liquidationCollateralWei).toBe(
+      '644900000000000',
+    );
+    expect(result.clusters[1].breakdown.liquidationCollateralWei).toBe(
+      '644900000000000',
+    );
+    expect(result.totalEstimatedDepositWei).toBe('5301350684791600');
+  });
+
   it('aggregates estimates across multiple clusters', async () => {
     const result = await estimateByOwnerAddress(
       '0x000000000000000000000000000000000000dead',

@@ -1,14 +1,7 @@
 .layout {
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: 1rem;
-  align-items: start;
-}
-
-@media (min-width: 1080px) {
-  .layout {
-    grid-template-columns: minmax(390px, 1fr) minmax(460px, 1.15fr);
-    gap: 1.1rem;
-  }
 }
 
 .panel {
@@ -20,9 +13,24 @@
   box-shadow: var(--panel-shadow);
 }
 
-.panel h2 {
-  font-size: 1.2rem;
-  margin: 0 0 0.5rem;
+.sectionHeader {
+  display: grid;
+  gap: 0.22rem;
+  margin-bottom: 0.8rem;
+}
+
+.sectionEyebrow {
+  margin: 0;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #34638d;
+}
+
+.sectionHeader h2 {
+  margin: 0;
+  font-size: 1.18rem;
 }
 
 .helpText {
@@ -192,12 +200,86 @@
   font-size: 0.9rem;
   color: var(--muted-strong);
   font-weight: 600;
+  width: fit-content;
 }
 
-.manualToggleRow input[type='checkbox'] {
-  width: 16px;
-  height: 16px;
-  margin: 0;
+.manualToggleText {
+  line-height: 1.35;
+}
+
+.switchButton {
+  border: 1px solid #bfd5ea;
+  background: #e9f2fb;
+  border-radius: 999px;
+  width: 44px;
+  height: 24px;
+  padding: 2px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
+  cursor: pointer;
+  transition: background-color 0.18s ease, border-color 0.18s ease;
+  flex-shrink: 0;
+}
+
+.switchButton:hover:not(:disabled) {
+  border-color: #9cbddd;
+}
+
+.switchButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.switchButton_on {
+  background: #2f7cb1;
+  border-color: #2f7cb1;
+}
+
+.switchKnob {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #ffffff;
+  box-shadow: 0 1px 2px rgb(16 38 58 / 22%);
+  transition: transform 0.18s ease;
+}
+
+.switchButton_on .switchKnob {
+  transform: translateX(20px);
+}
+
+.switchTooltipWrapper {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.switchTooltipWrapper_disabled {
+  cursor: not-allowed;
+}
+
+.switchTooltip {
+  position: absolute;
+  left: 0;
+  top: calc(100% + 8px);
+  width: min(360px, 78vw);
+  background: #0f2c4a;
+  color: #ecf4ff;
+  border-radius: 10px;
+  padding: 0.5rem 0.62rem;
+  font-size: 0.76rem;
+  line-height: 1.4;
+  box-shadow: 0 16px 28px rgb(16 38 58 / 22%);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.08s ease;
+  z-index: 25;
+}
+
+.switchTooltipWrapper:hover .switchTooltip,
+.switchTooltipWrapper:focus-within .switchTooltip {
+  opacity: 1;
 }
 
 .manualFields {

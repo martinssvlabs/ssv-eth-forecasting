@@ -74,6 +74,7 @@ export type ClusterEstimateResult = {
   owner?: string;
   runwayDays: number;
   operatorIds: string[];
+  effectiveBalance: string;
   validatorCount: string;
   breakdown: ClusterEstimateBreakdown;
   feeSelection: OperatorFeeSelection[];
@@ -84,6 +85,7 @@ export type ClusterEstimateResponseItem = {
   owner?: string;
   runwayDays: number;
   operatorIds: string[];
+  effectiveBalance: string;
   validatorCount: string;
   breakdown: {
     operatorFeeWeiPerBlock: string;
