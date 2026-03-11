@@ -1,0 +1,82 @@
+.page {
+  min-height: 100vh;
+  padding: 1.8rem 1rem 2.8rem;
+  position: relative;
+}
+
+.backgroundGlow {
+  position: fixed;
+  inset: -16% auto auto -10%;
+  width: min(900px, 75vw);
+  height: min(460px, 48vh);
+  background: radial-gradient(circle at 35% 45%, #bdddff 0%, #e8f4ff 42%, transparent 70%);
+  pointer-events: none;
+  z-index: -2;
+}
+
+.backgroundGlowSecondary {
+  position: fixed;
+  inset: auto -12% -20% auto;
+  width: min(820px, 70vw);
+  height: min(430px, 42vh);
+  background: radial-gradient(circle at 40% 40%, #cce9ff 0%, #edf8ff 45%, transparent 72%);
+  pointer-events: none;
+  z-index: -2;
+}
+
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  display: grid;
+  gap: 1.2rem;
+}
+
+.header {
+  border: 1px solid var(--panel-border);
+  border-radius: 20px;
+  background:
+    linear-gradient(150deg, #ffffff 0%, #f7fbff 62%, #f3f9ff 100%);
+  padding: clamp(1rem, 2vw, 1.5rem);
+  box-shadow: var(--panel-shadow);
+}
+
+.metaRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem;
+  margin-bottom: 0.8rem;
+}
+
+.kicker {
+  margin: 0;
+  color: var(--accent);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 0.75rem;
+}
+
+.metaPill {
+  border: 1px solid #bcd3ea;
+  background: #f2f8ff;
+  color: #2a5f90;
+  border-radius: 999px;
+  padding: 0.2rem 0.48rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+}
+
+.header h1 {
+  margin: 0;
+  font-size: clamp(1.55rem, 4vw, 2.55rem);
+  line-height: 1.13;
+  letter-spacing: -0.02em;
+}
+
+.headerLead {
+  margin: 0.85rem 0 0;
+  color: var(--muted-strong);
+  line-height: 1.62;
+  max-width: 74ch;
+}
