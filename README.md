@@ -42,9 +42,9 @@ The implementation is in:
 
 | Parameter | Unit | Source | Meaning |
 |---|---|---|---|
-| `ownerAddress` | address | user input | Owner used to fetch clusters from mainnet subgraph |
+| `ownerAddress` | address | user input | Owner used to fetch clusters from mainnet data sources |
 | `runwayDays` | days | user input | Target runway period to fund |
-| `effectiveBalance` | ETH-style value | live cluster data | Cluster effective balance used to derive validator units |
+| `effectiveBalance` | ETH | live cluster data | Cluster total effective balance used to derive validator units |
 | `operator.fee` | wei/block | live operator data | Current operator fee per block |
 | `networkFeeWei` | wei/block | forecast config or override | Forecast network fee per block |
 | `minimumLiquidationCollateralWei` | wei | forecast config or override | Collateral floor used by liquidation logic |
@@ -117,6 +117,13 @@ In owner mode, each cluster is estimated independently, then summed:
 totalEstimatedDepositWei = sum(cluster.estimatedDepositWei)
 ```
 
+### Effective Balance Source
+
+- Cluster inventory and operator composition are fetched from the mainnet subgraph.
+- Cluster **total effective balance** is fetched from SSV API v4:
+  - `GET /api/v4/{network}/clusters/{clusterHash}/totalEffectiveBalance`
+- SSV API returns effective balance in `gwei`; the app converts it to `ETH` before the runway formula is applied.
+
 ### Rounding and Integer Behavior
 
 - Math is integer-safe (`bigint`) end-to-end for protocol values.
@@ -152,14 +159,16 @@ No public-operator forecast strategy is used in the default estimator path.
 - `src/lib/estimate/computeDepositFromRunway.ts` pure formula
 - `src/lib/estimate/buildClusterForecastInput.ts` adapter from live data + forecast config
 - `src/lib/estimate/estimateService.ts` orchestration and owner aggregation
-- `src/lib/ssv/*` subgraph data-fetching layer
+- `src/lib/ssv/*` data-fetching layer (subgraph + SSV API)
 
 ## Environment Variables
 
 Copy `.env.example` to `.env.local` and adjust as needed.
 
-- `SSV_SUBGRAPH_URL`: SSV mainnet subgraph endpoint
+- `SSV_SUBGRAPH_URL`: SSV mainnet subgraph endpoint (used for operator fee data)
 - `SSV_SUBGRAPH_API_KEY`: optional Graph auth key
+- `SSV_API_BASE_URL`: SSV API base URL (used for cluster effective balance)
+- `SSV_API_NETWORK`: SSV API network name/path segment (default `mainnet`)
 - `DEFAULT_RUNWAY_DAYS`: default runway value
 - `FORECAST_ETH_NETWORK_FEE_WEI`
 - `FORECAST_MINIMUM_LIQUIDATION_COLLATERAL_WEI`

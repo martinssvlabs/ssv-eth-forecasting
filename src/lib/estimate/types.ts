@@ -5,6 +5,7 @@ export type LiveCluster = {
   owner?: string;
   operatorIds: string[];
   effectiveBalance: string;
+  activeValidatorCount?: string;
   active: boolean;
   validatorCount: string;
 };
@@ -18,6 +19,8 @@ export type LiveOperator = {
 export type ForecastConfig = {
   ssvSubgraphUrl: string;
   ssvSubgraphApiKey?: string;
+  ssvApiBaseUrl: string;
+  ssvApiNetwork: string;
   defaultRunwayDays: number;
   forecastEthNetworkFeeWei: bigint;
   forecastMinimumLiquidationCollateralWei: bigint;
@@ -75,6 +78,7 @@ export type ClusterEstimateResult = {
   runwayDays: number;
   operatorIds: string[];
   effectiveBalance: string;
+  activeValidatorCount: string;
   validatorCount: string;
   breakdown: ClusterEstimateBreakdown;
   feeSelection: OperatorFeeSelection[];
@@ -86,6 +90,7 @@ export type ClusterEstimateResponseItem = {
   runwayDays: number;
   operatorIds: string[];
   effectiveBalance: string;
+  activeValidatorCount: string;
   validatorCount: string;
   breakdown: {
     operatorFeeWeiPerBlock: string;

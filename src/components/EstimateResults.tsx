@@ -201,12 +201,8 @@ const BreakdownCard = ({
           <dd>{formatEth(burnRateWeiPerYear.toString(), 8)} ETH/year</dd>
         </div>
         <div>
-          <dt>Validators in cluster</dt>
-          <dd>{formatInteger(cluster.validatorCount)}</dd>
-        </div>
-        <div>
-          <dt>Validator units used</dt>
-          <dd>{formatInteger(cluster.breakdown.validatorUnits)}</dd>
+          <dt>Active validators</dt>
+          <dd>{formatInteger(cluster.activeValidatorCount)}</dd>
         </div>
       </dl>
 
@@ -223,7 +219,6 @@ const BreakdownCard = ({
           <li>Burn rate: {formatGwei(cluster.breakdown.burnRateWeiPerBlock)} gwei/block</li>
           <li>Liquidation threshold: {configUsed.liquidationThreshold} blocks</li>
           <li>Blocks/day assumption: {configUsed.blocksPerDay}</li>
-          <li>Validator units used internally: {cluster.breakdown.validatorUnits}</li>
         </ul>
 
         <div className={styles.sourceSection}>
@@ -338,7 +333,7 @@ export function EstimateResults({ result, loading, error }: EstimateResultsProps
             <thead>
               <tr>
                 <th>Cluster ID</th>
-                <th>Effective balance (ETH)</th>
+                <th>Effective balance</th>
                 <th>Daily burn rate</th>
                 <th>Liquidation collateral</th>
                 <th>Runway</th>

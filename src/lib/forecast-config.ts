@@ -2,6 +2,8 @@ import type { ForecastConfig } from '@/lib/estimate/types';
 
 const DEFAULT_SUBGRAPH_URL =
   'https://api.studio.thegraph.com/query/71118/ssv-network-ethereum/version/latest';
+const DEFAULT_SSV_API_BASE_URL = 'https://api.ssv.network';
+const DEFAULT_SSV_API_NETWORK = 'mainnet';
 
 const DEFAULT_DISCLAIMER =
   'Estimate only. Uses current mainnet cluster/operator state plus configured post-migration ETH protocol parameters. Final required ETH can change if governance parameters change before migration activation.';
@@ -31,6 +33,8 @@ const createForecastConfig = (): ForecastConfig => {
   return {
     ssvSubgraphUrl: process.env.SSV_SUBGRAPH_URL || DEFAULT_SUBGRAPH_URL,
     ssvSubgraphApiKey: process.env.SSV_SUBGRAPH_API_KEY,
+    ssvApiBaseUrl: process.env.SSV_API_BASE_URL || DEFAULT_SSV_API_BASE_URL,
+    ssvApiNetwork: process.env.SSV_API_NETWORK || DEFAULT_SSV_API_NETWORK,
     defaultRunwayDays: parseNumberEnv('DEFAULT_RUNWAY_DAYS', 365),
     forecastEthNetworkFeeWei: parseBigIntEnv(
       'FORECAST_ETH_NETWORK_FEE_WEI',

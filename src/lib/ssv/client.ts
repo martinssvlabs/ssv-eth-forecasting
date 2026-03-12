@@ -9,6 +9,10 @@ type GraphQLResponse<T> = {
   errors?: GraphQLError[];
 };
 
+const trimTrailingSlashes = (value: string): string => {
+  return value.replace(/\/+$/, '');
+};
+
 export const querySSVSubgraph = async <T>(
   query: string,
   variables: Record<string, unknown>,
@@ -44,4 +48,33 @@ export const querySSVSubgraph = async <T>(
   }
 
   return json.data;
+};
+
+export const querySSVApi = async <T>(
+  path: string,
+  queryParams?: Record<string, string | number | boolean | undefined>,
+): Promise<T> => {
+  const baseUrl = trimTrailingSlashes(forecastConfig.ssvApiBaseUrl);
+  const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+  const url = new URL(`${baseUrl}${normalizedPath}`);
+
+  if (queryParams) {
+    for (const [key, value] of Object.entries(queryParams)) {
+      if (value === undefined || value === null) continue;
+      url.searchParams.set(key, String(value));
+    }
+  }
+
+  const response = await fetch(url.toString(), {
+    method: 'GET',
+    cache: 'no-store',
+  });
+
+  if (!response.ok) {
+    const responseText = await response.text();
+    const suffix = responseText ? `: ${responseText.slice(0, 200)}` : '';
+    throw new Error(`SSV API request failed with status ${response.status}${suffix}`);
+  }
+
+  return (await response.json()) as T;
 };
