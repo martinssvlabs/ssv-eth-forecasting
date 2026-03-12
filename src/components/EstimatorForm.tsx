@@ -118,6 +118,23 @@ const toEthPerYearFromWeiPerBlock = (
   }
 };
 
+const validateEthPerYearInput = (value: string | undefined): string | null => {
+  if (!value || value.trim() === '') {
+    return 'Enter a value in ETH/year.';
+  }
+
+  try {
+    const parsed = parseEther(value.trim());
+    if (parsed < 0n) {
+      return 'Value must be zero or greater.';
+    }
+  } catch {
+    return 'Enter a valid ETH number (for example: 0.04).';
+  }
+
+  return null;
+};
+
 const sortOperatorRows = (a: OperatorLiveFeeRow, b: OperatorLiveFeeRow) => {
   const numA = Number(a.operatorId);
   const numB = Number(b.operatorId);
@@ -192,6 +209,10 @@ export function EstimatorForm({ defaults }: EstimatorFormProps) {
   const [manualOperatorFeesEthYearById, setManualOperatorFeesEthYearById] = useState<
     Record<string, string>
   >({});
+  const [manualOperatorFeeTouchedById, setManualOperatorFeeTouchedById] = useState<
+    Record<string, boolean>
+  >({});
+  const [submitAttempted, setSubmitAttempted] = useState(false);
   const [selectedManualClusterId, setSelectedManualClusterId] = useState('');
   const [lastEstimatedOwner, setLastEstimatedOwner] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -248,6 +269,15 @@ export function EstimatorForm({ defaults }: EstimatorFormProps) {
       impactedClusters,
     };
   }, [defaults.blocksPerDay, manualClusterRows, manualOperatorFeesEthYearById, manualOperatorRows]);
+  const manualOperatorFeeErrorsById = useMemo(() => {
+    const next: Record<string, string | null> = {};
+    for (const row of manualOperatorRows) {
+      next[row.operatorId] = validateEthPerYearInput(
+        manualOperatorFeesEthYearById[row.operatorId],
+      );
+    }
+    return next;
+  }, [manualOperatorFeesEthYearById, manualOperatorRows]);
   const normalizedOwnerInput = ownerAddress.trim().toLowerCase();
   const hasBaselineForCurrentOwner =
     normalizedOwnerInput.length > 0 &&
@@ -301,6 +331,18 @@ export function EstimatorForm({ defaults }: EstimatorFormProps) {
       setManualOperatorFeeOverrideEnabled(false);
     }
   }, [hasBaselineForCurrentOwner, manualOperatorFeeOverrideEnabled]);
+
+  useEffect(() => {
+    setManualOperatorFeeTouchedById((current) => {
+      const next: Record<string, boolean> = {};
+      for (const row of manualOperatorRows) {
+        if (current[row.operatorId]) {
+          next[row.operatorId] = true;
+        }
+      }
+      return next;
+    });
+  }, [manualOperatorRows]);
 
   useEffect(() => {
     if (!shouldScrollToResults || loading || !result) return;
@@ -445,6 +487,7 @@ export function EstimatorForm({ defaults }: EstimatorFormProps) {
 
   const onSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    setSubmitAttempted(true);
 
     if (!ownerAddress.trim()) {
       setError('Owner address is required');
@@ -459,6 +502,17 @@ export function EstimatorForm({ defaults }: EstimatorFormProps) {
     if (!Number.isFinite(runwayDays) || runwayDays <= 0) {
       setError('Runway must be greater than 0');
       return;
+    }
+
+    if (manualOperatorFeeOverrideEnabled) {
+      const hasManualFeeErrors = manualOperatorRows.some(
+        (row) => manualOperatorFeeErrorsById[row.operatorId] !== null,
+      );
+
+      if (hasManualFeeErrors) {
+        setError('Fix the highlighted operator fee values and try again.');
+        return;
+      }
     }
 
     let overrides: ForecastOverrides | undefined;
@@ -500,6 +554,7 @@ export function EstimatorForm({ defaults }: EstimatorFormProps) {
       setResult(json);
       setLastEstimatedOwner(ownerAddress.trim().toLowerCase());
       setShouldScrollToResults(true);
+      setSubmitAttempted(false);
     } catch (err) {
       setResult(null);
       setShouldScrollToResults(false);
@@ -683,6 +738,11 @@ export function EstimatorForm({ defaults }: EstimatorFormProps) {
                     <div className={styles.manualOperatorGrid}>
                       {selectedManualCluster?.operators.map((row) => {
                         const usageCount = operatorUsageCountById.get(row.operatorId) ?? 1;
+                        const manualFeeError = manualOperatorFeeErrorsById[row.operatorId];
+                        const showManualFeeError =
+                          manualFeeError !== null &&
+                          ((manualOperatorFeeTouchedById[row.operatorId] ?? false) ||
+                            submitAttempted);
                         return (
                           <label className={styles.field} key={row.operatorId}>
                             <FieldLabel
@@ -691,6 +751,7 @@ export function EstimatorForm({ defaults }: EstimatorFormProps) {
                             />
                             <input
                               type="text"
+                              className={showManualFeeError ? styles.fieldInputError : ''}
                               value={manualOperatorFeesEthYearById[row.operatorId] ?? ''}
                               onChange={(event) =>
                                 setManualOperatorFeesEthYearById((current) => ({
@@ -698,7 +759,20 @@ export function EstimatorForm({ defaults }: EstimatorFormProps) {
                                   [row.operatorId]: event.target.value,
                                 }))
                               }
+                              onBlur={() =>
+                                setManualOperatorFeeTouchedById((current) => ({
+                                  ...current,
+                                  [row.operatorId]: true,
+                                }))
+                              }
                             />
+                            {showManualFeeError ? (
+                              <small
+                                className={`${styles.fieldHint} ${styles.fieldHint_error}`}
+                              >
+                                {manualFeeError}
+                              </small>
+                            ) : null}
                             <small className={styles.fieldHint}>
                               Live:{' '}
                               {toEthPerYearFromWeiPerBlock(

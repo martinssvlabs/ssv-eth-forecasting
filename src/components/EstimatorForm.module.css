@@ -123,6 +123,12 @@
   box-shadow: 0 0 0 3px rgb(119 169 218 / 20%);
 }
 
+.fieldInputError,
+.field input.fieldInputError {
+  border-color: #d05850;
+  box-shadow: 0 0 0 3px rgb(208 88 80 / 16%);
+}
+
 .tooltipTrigger {
   position: relative;
   width: 16px;
