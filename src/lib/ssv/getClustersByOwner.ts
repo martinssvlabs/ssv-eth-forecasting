@@ -5,7 +5,6 @@ import { querySSVApi, querySSVSubgraph } from '@/lib/ssv/client';
 type SubgraphCluster = {
   id: string;
   operatorIds: string[];
-  effectiveBalance: string;
   active: boolean;
   validatorCount: string;
 };
@@ -43,7 +42,6 @@ const GET_CLUSTERS_QUERY = `
     clusters(where: { owner: $owner }, first: $first, skip: $skip) {
       id
       operatorIds
-      effectiveBalance
       active
       validatorCount
     }
