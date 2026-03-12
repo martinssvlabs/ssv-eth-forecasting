@@ -197,6 +197,7 @@ export function EstimatorForm({ defaults }: EstimatorFormProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<EstimateResponse | null>(null);
+  const [shouldScrollToResults, setShouldScrollToResults] = useState(false);
   const manualOperatorRows = useMemo(() => extractOperatorLiveFees(result), [result]);
   const manualClusterRows = useMemo(() => extractClusterManualRows(result), [result]);
   const selectedManualCluster = useMemo(
@@ -300,6 +301,21 @@ export function EstimatorForm({ defaults }: EstimatorFormProps) {
       setManualOperatorFeeOverrideEnabled(false);
     }
   }, [hasBaselineForCurrentOwner, manualOperatorFeeOverrideEnabled]);
+
+  useEffect(() => {
+    if (!shouldScrollToResults || loading || !result) return;
+
+    const frame = window.requestAnimationFrame(() => {
+      const summarySection = document.getElementById('estimate-summary-section');
+      summarySection?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'start',
+      });
+      setShouldScrollToResults(false);
+    });
+
+    return () => window.cancelAnimationFrame(frame);
+  }, [loading, result, shouldScrollToResults]);
 
   useEffect(() => {
     if (manualClusterRows.length === 0) {
@@ -483,8 +499,10 @@ export function EstimatorForm({ defaults }: EstimatorFormProps) {
 
       setResult(json);
       setLastEstimatedOwner(ownerAddress.trim().toLowerCase());
+      setShouldScrollToResults(true);
     } catch (err) {
       setResult(null);
+      setShouldScrollToResults(false);
       setError(err instanceof Error ? err.message : 'Unknown error');
     } finally {
       setLoading(false);

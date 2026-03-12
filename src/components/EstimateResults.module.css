@@ -10,6 +10,7 @@
     linear-gradient(160deg, #ffffff 0%, #fbfdff 62%, #f6fbff 100%);
   padding: 1.1rem;
   box-shadow: var(--panel-shadow);
+  scroll-margin-top: 1rem;
 }
 
 .sectionHeader {
@@ -170,9 +171,10 @@
 
 .table {
   width: 100%;
-  min-width: 1120px;
+  min-width: 860px;
   border-collapse: collapse;
   font-size: 0.88rem;
+  table-layout: fixed;
 }
 
 .table th,
@@ -181,7 +183,6 @@
   border-bottom: 1px solid #e2edf7;
   padding: 0.62rem;
   vertical-align: top;
-  white-space: nowrap;
 }
 
 .table thead th {
@@ -195,6 +196,7 @@
 .numberCol,
 .numberCell {
   text-align: right !important;
+  white-space: nowrap;
 }
 
 .estimatedCol {
@@ -212,8 +214,8 @@
 }
 
 .codeCell {
-  min-width: 580px;
-  max-width: 760px;
+  width: 35%;
+  min-width: 230px;
   font-family: var(--font-code);
   color: #234f79;
   overflow: hidden;
@@ -228,6 +230,7 @@
   max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .clusterLink:hover {
@@ -436,6 +439,7 @@
   }
 
   .codeCell {
-    min-width: 430px;
+    width: 43%;
+    min-width: 180px;
   }
 }

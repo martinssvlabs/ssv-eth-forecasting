@@ -1,6 +1,6 @@
 .page {
   min-height: 100vh;
-  padding: 1.8rem 1rem 2.8rem;
+  padding: 1.5rem clamp(0.55rem, 1.4vw, 1rem) 2.4rem;
   position: relative;
 }
 
@@ -25,7 +25,7 @@
 }
 
 .container {
-  max-width: 1200px;
+  max-width: 1340px;
   margin: 0 auto;
   display: grid;
   gap: 1.2rem;

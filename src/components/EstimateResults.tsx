@@ -72,6 +72,11 @@ const formatDays = (days: number): string => {
 const toClusterExplorerUrl = (clusterId: string): string =>
   `https://explorer.ssv.network/mainnet/cluster/${clusterId}`;
 
+const shortenClusterId = (clusterId: string): string => {
+  if (clusterId.length <= 22) return clusterId;
+  return `${clusterId.slice(0, 10)}...${clusterId.slice(-8)}`;
+};
+
 const healthCheckFromTotal = (totalWei: string) => {
   const totalEth = Number(formatEther(BigInt(totalWei)));
 
@@ -398,8 +403,9 @@ export function EstimateResults({ result, loading, error }: EstimateResultsProps
                         target="_blank"
                         rel="noopener noreferrer"
                         className={styles.clusterLink}
+                        title={cluster.clusterId}
                       >
-                        {cluster.clusterId}
+                        {shortenClusterId(cluster.clusterId)}
                       </a>
                     </td>
                     <td className={styles.numberCell}>
@@ -486,7 +492,7 @@ export function EstimateResults({ result, loading, error }: EstimateResultsProps
 
   return (
     <div className={styles.resultsSections}>
-      <section className={styles.panel}>
+      <section id="estimate-summary-section" className={styles.panel}>
         <SectionHeader sectionNumber="2" title="Summary" />
         {summaryContent}
       </section>
