@@ -69,6 +69,9 @@ const formatDays = (days: number): string => {
   }).format(days);
 };
 
+const toClusterExplorerUrl = (clusterId: string): string =>
+  `https://explorer.ssv.network/mainnet/cluster/${clusterId}`;
+
 const sourceLabelMap: Record<
   EstimateResponse['clusters'][number]['feeSelection'][number]['source'],
   string
@@ -157,7 +160,17 @@ const BreakdownCard = ({
   return (
     <article className={styles.breakdownCard}>
       <div className={styles.cardHeader}>
-        <h4>Cluster {cluster.clusterId}</h4>
+        <h4>
+          Cluster{' '}
+          <a
+            href={toClusterExplorerUrl(cluster.clusterId)}
+            target="_blank"
+            rel="noopener noreferrer"
+            className={styles.clusterLink}
+          >
+            {cluster.clusterId}
+          </a>
+        </h4>
       </div>
 
       <dl className={styles.primaryGrid}>
@@ -347,7 +360,16 @@ export function EstimateResults({ result, loading, error }: EstimateResultsProps
 
                 return (
                   <tr key={cluster.clusterId}>
-                    <td className={styles.codeCell}>{cluster.clusterId}</td>
+                    <td className={styles.codeCell}>
+                      <a
+                        href={toClusterExplorerUrl(cluster.clusterId)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className={styles.clusterLink}
+                      >
+                        {cluster.clusterId}
+                      </a>
+                    </td>
                     <td>{formatBalanceEth(cluster.effectiveBalance)} ETH</td>
                     <td>{formatEth(dailyBurnWei.toString(), 8)} ETH/day</td>
                     <td>{formatEth(cluster.breakdown.liquidationCollateralWei, 8)} ETH</td>

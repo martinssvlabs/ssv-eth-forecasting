@@ -189,6 +189,20 @@
   text-overflow: ellipsis;
 }
 
+.clusterLink {
+  color: #1f5f95;
+  text-decoration: none;
+  font-family: var(--font-code);
+  display: inline-block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.clusterLink:hover {
+  text-decoration: underline;
+}
+
 .cards {
   display: grid;
   gap: 0.78rem;
