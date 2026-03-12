@@ -65,7 +65,7 @@ const resolveOperatorFeeSelection = (
     ? parseManualOperatorFee(manualOperatorFeesWeiById?.[operator.id], operator.id)
     : undefined;
 
-  if (manualFeeWei !== undefined) {
+  if (manualFeeWei !== undefined && manualFeeWei !== liveFeeWei) {
     return {
       operatorId: operator.id,
       isPrivate: operator.isPrivate,

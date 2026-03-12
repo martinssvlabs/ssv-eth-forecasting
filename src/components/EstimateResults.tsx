@@ -72,15 +72,6 @@ const formatDays = (days: number): string => {
 const toClusterExplorerUrl = (clusterId: string): string =>
   `https://explorer.ssv.network/mainnet/cluster/${clusterId}`;
 
-const sourceLabelMap: Record<
-  EstimateResponse['clusters'][number]['feeSelection'][number]['source'],
-  string
-> = {
-  privateZeroFee: 'private zero',
-  live: 'live',
-  manual: 'manual override',
-};
-
 const healthCheckFromTotal = (totalWei: string) => {
   const totalEth = Number(formatEther(BigInt(totalWei)));
 
@@ -223,15 +214,24 @@ const BreakdownCard = ({
         <summary>Technical details</summary>
         <ul>
           <li>
-            Operator fee sum: {formatGwei(cluster.breakdown.operatorFeeWeiPerBlock)}
-            {' '}gwei/block
+            <strong>Operator fee sum:</strong>{' '}
+            {formatGwei(cluster.breakdown.operatorFeeWeiPerBlock)} gwei/block
           </li>
           <li>
-            Network fee: {formatGwei(cluster.breakdown.networkFeeWeiPerBlock)} gwei/block
+            <strong>Network fee:</strong>{' '}
+            {formatGwei(cluster.breakdown.networkFeeWeiPerBlock)} gwei/block
           </li>
-          <li>Burn rate: {formatGwei(cluster.breakdown.burnRateWeiPerBlock)} gwei/block</li>
-          <li>Liquidation threshold: {configUsed.liquidationThreshold} blocks</li>
-          <li>Blocks/day assumption: {configUsed.blocksPerDay}</li>
+          <li>
+            <strong>Burn rate:</strong>{' '}
+            {formatGwei(cluster.breakdown.burnRateWeiPerBlock)} gwei/block
+          </li>
+          <li>
+            <strong>Liquidation threshold:</strong> {configUsed.liquidationThreshold}{' '}
+            blocks
+          </li>
+          <li>
+            <strong>Blocks/day assumption:</strong> {configUsed.blocksPerDay}
+          </li>
         </ul>
 
         <div className={styles.sourceSection}>
@@ -241,13 +241,24 @@ const BreakdownCard = ({
               <div key={item.operatorId} className={styles.sourceRow}>
                 <span className={styles.sourceOperator}>Operator {item.operatorId}</span>
                 <span
-                  className={`${styles.sourceBadge} ${styles[`source_${item.source}`]}`}
+                  className={`${styles.sourceBadge} ${item.isPrivate ? styles.sourceTypePrivate : styles.sourceTypePublic}`}
                 >
-                  {sourceLabelMap[item.source]}
+                  {item.isPrivate ? 'Private operator' : 'Public operator'}
                 </span>
-                <span className={styles.sourceFee}>
-                  {formatGwei(item.effectiveFeeWeiPerBlock)} gwei/block
+                <span className={styles.appliedFeeBadge}>
+                  {formatEth(
+                    (
+                      BigInt(item.effectiveFeeWeiPerBlock) * blocksPerYear
+                    ).toString(),
+                    8,
+                  )}{' '}
+                  ETH/year
                 </span>
+                {item.source === 'manual' ? (
+                  <span className={`${styles.sourceBadge} ${styles.sourceManual}`}>
+                    Manual override
+                  </span>
+                ) : null}
               </div>
             ))}
           </div>
@@ -334,10 +345,18 @@ export function EstimateResults({ result, loading, error }: EstimateResultsProps
           </h4>
 
           <div className={styles.summaryMetrics}>
-            <p>Operator fee: {formatEth(totals.operator.toString(), 8)} ETH/year</p>
-            <p>Network fee: {formatEth(totals.network.toString(), 8)} ETH/year</p>
-            <p>Runway funding: {formatEth(totals.runwayFunding.toString(), 8)} ETH</p>
-            <p>Collateral requirement: {formatEth(totals.collateral.toString(), 8)} ETH</p>
+            <p>
+              <strong>Operator fee:</strong> {formatEth(totals.operator.toString(), 8)} ETH/year
+            </p>
+            <p>
+              <strong>Network fee:</strong> {formatEth(totals.network.toString(), 8)} ETH/year
+            </p>
+            <p>
+              <strong>Runway funding:</strong> {formatEth(totals.runwayFunding.toString(), 8)} ETH
+            </p>
+            <p>
+              <strong>Collateral requirement:</strong> {formatEth(totals.collateral.toString(), 8)} ETH
+            </p>
           </div>
         </div>
 
@@ -401,22 +420,29 @@ export function EstimateResults({ result, loading, error }: EstimateResultsProps
             <h4>Assumptions used</h4>
             <ul>
               <li>
-                Operator fee source:{' '}
+                <strong>Operator fee source:</strong>{' '}
                 {manualModeActive
                   ? `manual override (${result.configUsed.manualOperatorOverridesCount} operators)`
                   : 'live operator data from mainnet subgraph'}
               </li>
               <li>
-                Network fee assumption: {formatEth(networkFeeWeiPerYearPerUnit, 9)} ETH/year
-                per validator
+                <strong>Network fee assumption:</strong>{' '}
+                {formatEth(networkFeeWeiPerYearPerUnit, 9)} ETH/year per validator
               </li>
               <li>
-                Minimum liquidation collateral:{' '}
+                <strong>Minimum liquidation collateral:</strong>{' '}
                 {formatEth(result.configUsed.minimumLiquidationCollateralWei, 8)} ETH
               </li>
-              <li>Blocks before liquidation: {result.configUsed.liquidationThreshold} blocks</li>
-              <li>Equivalent duration: {formatDays(thresholdDaysEquivalent)} days</li>
-              <li>Blocks/day assumption: {result.configUsed.blocksPerDay}</li>
+              <li>
+                <strong>Blocks before liquidation:</strong>{' '}
+                {result.configUsed.liquidationThreshold} blocks
+              </li>
+              <li>
+                <strong>Equivalent duration:</strong> {formatDays(thresholdDaysEquivalent)} days
+              </li>
+              <li>
+                <strong>Blocks/day assumption:</strong> {result.configUsed.blocksPerDay}
+              </li>
             </ul>
           </section>
 

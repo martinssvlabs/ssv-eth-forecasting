@@ -25,6 +25,11 @@ type OperatorLiveFeeRow = {
   liveFeeWeiPerBlock: string;
 };
 
+type ClusterManualRow = {
+  clusterId: string;
+  operators: OperatorLiveFeeRow[];
+};
+
 type FieldLabelProps = {
   label: string;
   tooltip: string;
@@ -144,6 +149,27 @@ const extractOperatorLiveFees = (
   return Array.from(byId.values()).sort(sortOperatorRows);
 };
 
+const extractClusterManualRows = (
+  response: EstimateResponse | null,
+): ClusterManualRow[] => {
+  if (!response) return [];
+
+  return response.clusters.map((cluster) => ({
+    clusterId: cluster.clusterId,
+    operators: cluster.feeSelection
+      .map((fee) => ({
+        operatorId: fee.operatorId,
+        liveFeeWeiPerBlock: fee.liveFeeWeiPerBlock,
+      }))
+      .sort(sortOperatorRows),
+  }));
+};
+
+const shortenClusterId = (clusterId: string): string => {
+  if (clusterId.length <= 20) return clusterId;
+  return `${clusterId.slice(0, 12)}...${clusterId.slice(-8)}`;
+};
+
 export function EstimatorForm({ defaults }: EstimatorFormProps) {
   const defaultAdvancedState = useMemo(
     () => toDefaultAdvancedState(defaults),
@@ -166,11 +192,61 @@ export function EstimatorForm({ defaults }: EstimatorFormProps) {
   const [manualOperatorFeesEthYearById, setManualOperatorFeesEthYearById] = useState<
     Record<string, string>
   >({});
+  const [selectedManualClusterId, setSelectedManualClusterId] = useState('');
   const [lastEstimatedOwner, setLastEstimatedOwner] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<EstimateResponse | null>(null);
   const manualOperatorRows = useMemo(() => extractOperatorLiveFees(result), [result]);
+  const manualClusterRows = useMemo(() => extractClusterManualRows(result), [result]);
+  const selectedManualCluster = useMemo(
+    () =>
+      manualClusterRows.find((cluster) => cluster.clusterId === selectedManualClusterId) ??
+      null,
+    [manualClusterRows, selectedManualClusterId],
+  );
+  const operatorUsageCountById = useMemo(() => {
+    const usage = new Map<string, number>();
+    for (const cluster of manualClusterRows) {
+      for (const operator of cluster.operators) {
+        usage.set(operator.operatorId, (usage.get(operator.operatorId) ?? 0) + 1);
+      }
+    }
+    return usage;
+  }, [manualClusterRows]);
+  const manualOverrideSummary = useMemo(() => {
+    const blocksPerYear = getBlocksPerYear(defaults.blocksPerDay);
+    const overriddenOperatorIds = new Set<string>();
+
+    for (const row of manualOperatorRows) {
+      const liveWeiPerYear = BigInt(row.liveFeeWeiPerBlock) * blocksPerYear;
+      const manualEthPerYear = manualOperatorFeesEthYearById[row.operatorId];
+      if (!manualEthPerYear || manualEthPerYear.trim() === '') continue;
+
+      try {
+        const manualWeiPerYear = parseEther(manualEthPerYear.trim());
+        if (manualWeiPerYear !== liveWeiPerYear) {
+          overriddenOperatorIds.add(row.operatorId);
+        }
+      } catch {
+        continue;
+      }
+    }
+
+    let impactedClusters = 0;
+    for (const cluster of manualClusterRows) {
+      if (cluster.operators.some((operator) => overriddenOperatorIds.has(operator.operatorId))) {
+        impactedClusters += 1;
+      }
+    }
+
+    return {
+      clusters: manualClusterRows.length,
+      uniqueOperators: manualOperatorRows.length,
+      overriddenOperators: overriddenOperatorIds.size,
+      impactedClusters,
+    };
+  }, [defaults.blocksPerDay, manualClusterRows, manualOperatorFeesEthYearById, manualOperatorRows]);
   const normalizedOwnerInput = ownerAddress.trim().toLowerCase();
   const hasBaselineForCurrentOwner =
     normalizedOwnerInput.length > 0 &&
@@ -225,6 +301,22 @@ export function EstimatorForm({ defaults }: EstimatorFormProps) {
     }
   }, [hasBaselineForCurrentOwner, manualOperatorFeeOverrideEnabled]);
 
+  useEffect(() => {
+    if (manualClusterRows.length === 0) {
+      if (selectedManualClusterId !== '') {
+        setSelectedManualClusterId('');
+      }
+      return;
+    }
+
+    const hasSelectedCluster = manualClusterRows.some(
+      (cluster) => cluster.clusterId === selectedManualClusterId,
+    );
+    if (!hasSelectedCluster) {
+      setSelectedManualClusterId(manualClusterRows[0].clusterId);
+    }
+  }, [manualClusterRows, selectedManualClusterId]);
+
   const resetAdvancedToDefaults = () => {
     setNetworkFeeEthPerYear(defaultAdvancedState.networkFeeEthPerYear);
     setMinimumLiquidationCollateralEth(
@@ -242,6 +334,21 @@ export function EstimatorForm({ defaults }: EstimatorFormProps) {
       );
     }
     setManualOperatorFeesEthYearById(next);
+  };
+
+  const resetSelectedClusterFeesToLive = () => {
+    if (!selectedManualCluster) return;
+
+    setManualOperatorFeesEthYearById((current) => {
+      const next = { ...current };
+      for (const operator of selectedManualCluster.operators) {
+        next[operator.operatorId] = toEthPerYearFromWeiPerBlock(
+          operator.liveFeeWeiPerBlock,
+          defaults.blocksPerDay,
+        );
+      }
+      return next;
+    });
   };
 
   const buildOverrides = (): ForecastOverrides | undefined => {
@@ -485,8 +592,8 @@ export function EstimatorForm({ defaults }: EstimatorFormProps) {
             {manualOperatorFeeOverrideEnabled ? (
               <div className={styles.manualFields}>
                 <small className={styles.manualWarning}>
-                  Non-default scenario mode. Manual operator fee inputs are custom
-                  assumptions.
+                  Manual mode is enabled. Edited operator fees are custom assumptions
+                  for this estimate.
                 </small>
 
                 {manualOperatorRows.length === 0 ? (
@@ -496,41 +603,98 @@ export function EstimatorForm({ defaults }: EstimatorFormProps) {
                   </small>
                 ) : (
                   <>
+                    <div className={styles.manualSummaryRow}>
+                      <span className={styles.manualSummaryChip}>
+                        Clusters: {manualOverrideSummary.clusters}
+                      </span>
+                      <span className={styles.manualSummaryChip}>
+                        Unique operators: {manualOverrideSummary.uniqueOperators}
+                      </span>
+                      <span className={styles.manualSummaryChip}>
+                        Overridden operators: {manualOverrideSummary.overriddenOperators}
+                      </span>
+                      <span className={styles.manualSummaryChip}>
+                        Impacted clusters: {manualOverrideSummary.impactedClusters}
+                      </span>
+                    </div>
+
+                    <div className={styles.manualClusterPicker}>
+                      <label className={styles.field}>
+                        <FieldLabel
+                          label="Cluster to edit"
+                          tooltip="Select one cluster to edit operator fee overrides. Overrides are still applied by operator ID."
+                        />
+                        <select
+                          value={selectedManualClusterId}
+                          onChange={(event) =>
+                            setSelectedManualClusterId(event.target.value)
+                          }
+                        >
+                          {manualClusterRows.map((cluster) => (
+                            <option key={cluster.clusterId} value={cluster.clusterId}>
+                              {shortenClusterId(cluster.clusterId)} ({cluster.operators.length} operators)
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                    </div>
+
                     <div className={styles.advancedActions}>
                       <small className={styles.fieldHint}>
                         Prefilled from live operator fees. Edit values in ETH/year.
                       </small>
-                      <button
-                        type="button"
-                        className={styles.resetDefaultsButton}
-                        onClick={resetManualFeesToLive}
-                      >
-                        Reset to live fees
-                      </button>
+                      <div className={styles.manualActions}>
+                        <button
+                          type="button"
+                          className={styles.resetDefaultsButton}
+                          onClick={resetSelectedClusterFeesToLive}
+                          disabled={!selectedManualCluster}
+                        >
+                          Reset selected cluster
+                        </button>
+                        <button
+                          type="button"
+                          className={styles.resetDefaultsButton}
+                          onClick={resetManualFeesToLive}
+                        >
+                          Reset all operators
+                        </button>
+                      </div>
                     </div>
 
                     <div className={styles.manualOperatorGrid}>
-                      {manualOperatorRows.map((row) => (
-                        <label className={styles.field} key={row.operatorId}>
-                          <FieldLabel
-                            label={`Operator ${row.operatorId} fee (ETH/year)`}
-                            tooltip="Manual fee assumption for this operator, entered as ETH/year."
-                          />
-                          <input
-                            type="text"
-                            value={manualOperatorFeesEthYearById[row.operatorId] ?? ''}
-                            onChange={(event) =>
-                              setManualOperatorFeesEthYearById((current) => ({
-                                ...current,
-                                [row.operatorId]: event.target.value,
-                              }))
-                            }
-                          />
-                          <small className={styles.fieldHint}>
-                            Live: {toEthPerYearFromWeiPerBlock(row.liveFeeWeiPerBlock, defaults.blocksPerDay)} ETH/year
-                          </small>
-                        </label>
-                      ))}
+                      {selectedManualCluster?.operators.map((row) => {
+                        const usageCount = operatorUsageCountById.get(row.operatorId) ?? 1;
+                        return (
+                          <label className={styles.field} key={row.operatorId}>
+                            <FieldLabel
+                              label={`Operator ${row.operatorId} fee (ETH/year)`}
+                              tooltip="Manual fee assumption for this operator, entered as ETH/year."
+                            />
+                            <input
+                              type="text"
+                              value={manualOperatorFeesEthYearById[row.operatorId] ?? ''}
+                              onChange={(event) =>
+                                setManualOperatorFeesEthYearById((current) => ({
+                                  ...current,
+                                  [row.operatorId]: event.target.value,
+                                }))
+                              }
+                            />
+                            <small className={styles.fieldHint}>
+                              Live:{' '}
+                              {toEthPerYearFromWeiPerBlock(
+                                row.liveFeeWeiPerBlock,
+                                defaults.blocksPerDay,
+                              )}{' '}
+                              ETH/year
+                              {usageCount > 1
+                                ? ` • used in ${usageCount} clusters`
+                                : ''}
+                            </small>
+                          </label>
+                        );
+                      })}
                     </div>
                   </>
                 )}

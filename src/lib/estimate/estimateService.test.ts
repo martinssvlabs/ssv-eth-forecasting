@@ -107,7 +107,8 @@ describe('estimateByOwnerAddress', () => {
     expect(second.breakdown.estimatedDepositWei).toBe('1002148000000000000');
     expect(result.totalEstimatedDepositWei).toBe('2003222000000000000');
     expect(result.configUsed.operatorFeeSource).toBe('manualOverride');
-    expect(result.configUsed.manualOperatorOverridesCount).toBe(8);
+    expect(result.configUsed.manualOperatorOverridesCount).toBe(4);
     expect(first.feeSelection.every((item) => item.source === 'manual')).toBe(true);
+    expect(second.feeSelection.every((item) => item.source === 'live')).toBe(true);
   });
 });

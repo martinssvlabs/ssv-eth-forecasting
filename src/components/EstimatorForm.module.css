@@ -298,6 +298,36 @@
   padding: 0.44rem 0.58rem;
 }
 
+.manualSummaryRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.manualSummaryChip {
+  border: 1px solid #c7daec;
+  border-radius: 999px;
+  background: #f2f8ff;
+  color: #335f84;
+  padding: 0.26rem 0.56rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.manualClusterPicker {
+  border: 1px solid #d8e6f4;
+  border-radius: 12px;
+  background: #f8fbff;
+  padding: 0.55rem 0.62rem;
+}
+
+.manualActions {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem;
+}
+
 .manualOperatorGrid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
