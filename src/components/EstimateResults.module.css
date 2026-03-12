@@ -76,13 +76,29 @@
   margin-bottom: 0.95rem;
 }
 
-.summaryTitle {
+.kpiCard {
+  border: 1px solid #c6daed;
+  border-radius: 14px;
+  background: linear-gradient(160deg, #f5faff 0%, #ffffff 100%);
+  padding: 0.72rem 0.85rem;
+}
+
+.kpiLabel {
   margin: 0;
   display: inline-flex;
   align-items: center;
-  gap: 0.5rem;
-  flex-wrap: wrap;
-  font-size: 1.18rem;
+  gap: 0.45rem;
+  color: #315f84;
+  font-size: 0.86rem;
+  font-weight: 600;
+}
+
+.kpiValue {
+  margin: 0.18rem 0 0;
+  font-size: 1.45rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  color: #173e63;
 }
 
 .summaryMetrics {
@@ -174,6 +190,21 @@
   font-size: 0.78rem;
   text-transform: uppercase;
   letter-spacing: 0.04em;
+}
+
+.numberCol,
+.numberCell {
+  text-align: right !important;
+}
+
+.estimatedCol {
+  background: #e8f4ff !important;
+}
+
+.estimatedCell {
+  font-weight: 700;
+  color: #17486f;
+  background: #f5faff;
 }
 
 .table tbody tr:last-child td {

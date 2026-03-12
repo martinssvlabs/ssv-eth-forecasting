@@ -314,6 +314,12 @@ export function EstimateResults({ result, loading, error }: EstimateResultsProps
       BigInt(result.configUsed.networkFeeWei) * blocksPerYear
     ).toString();
     const manualModeActive = result.configUsed.operatorFeeSource === 'manualOverride';
+    const sortedClusters = [...result.clusters].sort((a, b) => {
+      const aWei = BigInt(a.breakdown.estimatedDepositWei);
+      const bWei = BigInt(b.breakdown.estimatedDepositWei);
+      if (aWei === bWei) return 0;
+      return aWei > bWei ? -1 : 1;
+    });
 
     const totals = result.clusters.reduce(
       (acc, cluster) => {
@@ -339,10 +345,15 @@ export function EstimateResults({ result, loading, error }: EstimateResultsProps
         </div>
 
         <div className={styles.summaryTop}>
-          <h4 className={styles.summaryTitle}>
-            Total estimated deposit required: {formatEth(result.totalEstimatedDepositWei)} ETH
-            <InfoTooltip text={summaryTooltipText} />
-          </h4>
+          <div className={styles.kpiCard}>
+            <p className={styles.kpiLabel}>
+              Total estimated deposit required
+              <InfoTooltip text={summaryTooltipText} />
+            </p>
+            <p className={styles.kpiValue}>
+              {formatEth(result.totalEstimatedDepositWei)} ETH
+            </p>
+          </div>
 
           <div className={styles.summaryMetrics}>
             <p>
@@ -365,15 +376,17 @@ export function EstimateResults({ result, loading, error }: EstimateResultsProps
             <thead>
               <tr>
                 <th>Cluster ID</th>
-                <th>Effective balance</th>
-                <th>Daily burn rate</th>
-                <th>Liquidation collateral</th>
-                <th>Runway</th>
-                <th>Estimated required ETH</th>
+                <th className={styles.numberCol}>Effective balance</th>
+                <th className={styles.numberCol}>Daily burn rate</th>
+                <th className={styles.numberCol}>Liquidation collateral</th>
+                <th className={styles.numberCol}>Runway</th>
+                <th className={`${styles.numberCol} ${styles.estimatedCol}`}>
+                  Estimated required ETH
+                </th>
               </tr>
             </thead>
             <tbody>
-              {result.clusters.map((cluster) => {
+              {sortedClusters.map((cluster) => {
                 const dailyBurnWei =
                   BigInt(cluster.breakdown.burnRateWeiPerBlock) * blocksPerDay;
 
@@ -389,11 +402,19 @@ export function EstimateResults({ result, loading, error }: EstimateResultsProps
                         {cluster.clusterId}
                       </a>
                     </td>
-                    <td>{formatBalanceEth(cluster.effectiveBalance)} ETH</td>
-                    <td>{formatEth(dailyBurnWei.toString(), 8)} ETH/day</td>
-                    <td>{formatEth(cluster.breakdown.liquidationCollateralWei, 8)} ETH</td>
-                    <td>{cluster.runwayDays} days</td>
-                    <td>{formatEth(cluster.breakdown.estimatedDepositWei)} ETH</td>
+                    <td className={styles.numberCell}>
+                      {formatBalanceEth(cluster.effectiveBalance)} ETH
+                    </td>
+                    <td className={styles.numberCell}>
+                      {formatEth(dailyBurnWei.toString(), 8)} ETH/day
+                    </td>
+                    <td className={styles.numberCell}>
+                      {formatEth(cluster.breakdown.liquidationCollateralWei, 8)} ETH
+                    </td>
+                    <td className={styles.numberCell}>{cluster.runwayDays} days</td>
+                    <td className={`${styles.numberCell} ${styles.estimatedCell}`}>
+                      {formatEth(cluster.breakdown.estimatedDepositWei)} ETH
+                    </td>
                   </tr>
                 );
               })}
@@ -406,7 +427,7 @@ export function EstimateResults({ result, loading, error }: EstimateResultsProps
     detailContent = (
       <>
         <div className={styles.cards}>
-          {result.clusters.map((cluster) => (
+          {sortedClusters.map((cluster) => (
             <BreakdownCard
               key={cluster.clusterId}
               cluster={cluster}
