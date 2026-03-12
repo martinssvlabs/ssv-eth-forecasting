@@ -563,8 +563,8 @@ export function EstimatorForm({ defaults }: EstimatorFormProps) {
 
               <label className={styles.field}>
                 <FieldLabel
-                  label="Estimated yearly SSV network fee (per validator)"
-                  tooltip="Estimated fee paid to the SSV network each year for one validator. This value may change before migration."
+                  label="Estimated yearly ssv.network fee (ETH)"
+                  tooltip="Estimated ETH fee paid to ssv.network each year for one validator (ETH/year). This value may change before migration."
                 />
                 <input
                   type="text"
