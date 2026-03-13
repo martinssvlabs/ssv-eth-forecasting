@@ -12,9 +12,12 @@ type BuildClusterForecastInputArgs = {
   cluster: LiveCluster;
   operators: LiveOperator[];
   runwayDays: number;
+  operatorFeeSsvToEthRateWei: bigint;
   overrides?: ForecastOverrides;
   config?: ForecastConfig;
 };
+
+const WEI_PER_TOKEN = 10n ** 18n;
 
 const parseOptionalBigInt = (
   value: string | undefined,
@@ -57,10 +60,13 @@ const parseManualOperatorFee = (
 
 const resolveOperatorFeeSelection = (
   operator: LiveOperator,
+  operatorFeeSsvToEthRateWei: bigint,
   manualOperatorFeeOverrideEnabled: boolean,
   manualOperatorFeesWeiById: Record<string, string> | undefined,
 ): OperatorFeeSelection => {
-  const liveFeeWei = BigInt(operator.fee);
+  const liveFeeSsvWeiPerBlock = BigInt(operator.fee);
+  const liveFeeWei =
+    (liveFeeSsvWeiPerBlock * operatorFeeSsvToEthRateWei) / WEI_PER_TOKEN;
   const manualFeeWei = manualOperatorFeeOverrideEnabled
     ? parseManualOperatorFee(manualOperatorFeesWeiById?.[operator.id], operator.id)
     : undefined;
@@ -116,6 +122,7 @@ export const buildClusterForecastInput = ({
   cluster,
   operators,
   runwayDays,
+  operatorFeeSsvToEthRateWei,
   overrides,
   config = forecastConfig,
 }: BuildClusterForecastInputArgs): ClusterForecastInput => {
@@ -138,6 +145,7 @@ export const buildClusterForecastInput = ({
 
     return resolveOperatorFeeSelection(
       operator,
+      operatorFeeSsvToEthRateWei,
       manualOperatorFeeOverrideEnabled,
       overrides?.manualOperatorFeesWeiById,
     );

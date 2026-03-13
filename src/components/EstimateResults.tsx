@@ -77,6 +77,31 @@ const shortenClusterId = (clusterId: string): string => {
   return `${clusterId.slice(0, 10)}...${clusterId.slice(-8)}`;
 };
 
+const rateSourceLabel: Record<
+  EstimateResponse['configUsed']['operatorFeeSsvToEthRateSource'],
+  string
+> = {
+  env_override: 'configured override',
+  coingecko: 'CoinGecko',
+  binance_derived: 'Binance (derived pair)',
+};
+
+const formatUnixTime = (unixSeconds: number): string => {
+  if (!Number.isFinite(unixSeconds) || unixSeconds <= 0) {
+    return 'n/a';
+  }
+
+  return new Intl.DateTimeFormat('en-US', {
+    year: 'numeric',
+    month: 'short',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+    timeZoneName: 'short',
+  }).format(new Date(unixSeconds * 1000));
+};
+
 const healthCheckFromTotal = (totalWei: string) => {
   const totalEth = Number(formatEther(BigInt(totalWei)));
 
@@ -318,6 +343,13 @@ export function EstimateResults({ result, loading, error }: EstimateResultsProps
     const networkFeeWeiPerYearPerUnit = (
       BigInt(result.configUsed.networkFeeWei) * blocksPerYear
     ).toString();
+    const operatorFeeSsvToEthRate = result.configUsed.operatorFeeSsvToEthRateWei;
+    const operatorFeeRateSource =
+      rateSourceLabel[result.configUsed.operatorFeeSsvToEthRateSource];
+    const operatorFeeRateTimestamp = formatUnixTime(
+      result.configUsed.operatorFeeSsvToEthRateFetchedAtUnix,
+    );
+    const operatorFeeRateStale = result.configUsed.operatorFeeSsvToEthRateStale;
     const manualModeActive = result.configUsed.operatorFeeSource === 'manualOverride';
     const sortedClusters = [...result.clusters].sort((a, b) => {
       const aWei = BigInt(a.breakdown.estimatedDepositWei);
@@ -450,7 +482,15 @@ export function EstimateResults({ result, loading, error }: EstimateResultsProps
                 <strong>Operator fee source:</strong>{' '}
                 {manualModeActive
                   ? `manual override (${result.configUsed.manualOperatorOverridesCount} operators)`
-                  : 'live operator data from mainnet subgraph'}
+                  : 'live operator data from mainnet subgraph (converted to ETH)'}
+              </li>
+              <li>
+                <strong>Operator fee conversion:</strong> 1 SSV ={' '}
+                {formatEth(operatorFeeSsvToEthRate, 9)} ETH ({operatorFeeRateSource}
+                {operatorFeeRateStale ? ', cached' : ''})
+              </li>
+              <li>
+                <strong>Conversion rate updated:</strong> {operatorFeeRateTimestamp}
               </li>
               <li>
                 <strong>Network fee assumption:</strong>{' '}

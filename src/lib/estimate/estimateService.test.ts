@@ -30,6 +30,14 @@ const mockDataSource: ForecastDataSource = {
 
     return operatorIds.map((id) => ({ id, fee: '1000000000', isPrivate: false }));
   },
+  async getSsvToEthRateWei() {
+    return {
+      rateWei: 1000000000000000000n,
+      source: 'env_override' as const,
+      fetchedAtUnix: 1_773_419_830,
+      stale: false,
+    };
+  },
 };
 
 describe('estimateByOwnerAddress', () => {
@@ -108,6 +116,8 @@ describe('estimateByOwnerAddress', () => {
     expect(result.totalEstimatedDepositWei).toBe('2003222000000000000');
     expect(result.configUsed.operatorFeeSource).toBe('manualOverride');
     expect(result.configUsed.manualOperatorOverridesCount).toBe(4);
+    expect(result.configUsed.operatorFeeSsvToEthRateSource).toBe('env_override');
+    expect(result.configUsed.operatorFeeSsvToEthRateStale).toBe(false);
     expect(first.feeSelection.every((item) => item.source === 'manual')).toBe(true);
     expect(second.feeSelection.every((item) => item.source === 'live')).toBe(true);
   });

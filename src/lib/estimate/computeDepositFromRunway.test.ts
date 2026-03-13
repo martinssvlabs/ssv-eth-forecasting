@@ -19,6 +19,7 @@ describe('computeDepositFromRunway', () => {
         { id: '4', fee: '0', isPrivate: true },
       ],
       runwayDays: 365,
+      operatorFeeSsvToEthRateWei: 1000000000000000000n,
       overrides: {
         networkFeeWei: '1000000000',
         minimumLiquidationCollateralWei: '1000000000000000000',
@@ -53,6 +54,7 @@ describe('computeDepositFromRunway', () => {
         { id: '13', fee: '1000000000', isPrivate: false },
       ],
       runwayDays: 30,
+      operatorFeeSsvToEthRateWei: 1000000000000000000n,
       overrides: {
         networkFeeWei: '1000000000',
         minimumLiquidationCollateralWei: '1000000000000000000',

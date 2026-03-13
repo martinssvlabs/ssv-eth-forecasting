@@ -45,7 +45,8 @@ The implementation is in:
 | `ownerAddress` | address | user input | Owner used to fetch clusters from mainnet data sources |
 | `runwayDays` | days | user input | Target runway period to fund |
 | `effectiveBalance` | ETH | live cluster data | Cluster total effective balance used to derive validator units |
-| `operator.fee` | wei/block | live operator data | Current operator fee per block |
+| `operator.fee` | legacy token wei/block | live operator data | Current on-chain operator fee before migration |
+| `operatorFeeSsvToEthRateWei` | wei | config or SSV API finance endpoint | Conversion rate used to map legacy operator fees to ETH |
 | `networkFeeWei` | wei/block | forecast config or override | Forecast network fee per block |
 | `minimumLiquidationCollateralWei` | wei | forecast config or override | Collateral floor used by liquidation logic |
 | `liquidationThreshold` | blocks | forecast config or override | Liquidation threshold period |
@@ -57,7 +58,11 @@ The implementation is in:
 For each cluster, the estimator computes:
 
 ```text
-operatorsFeeWeiPerBlock = sum(effective operator fees for the cluster)
+liveOperatorFeeEthWeiPerBlock = floor(
+  liveOperatorFeeSsvWeiPerBlock * operatorFeeSsvToEthRateWei / 1e18
+)
+
+operatorsFeeWeiPerBlock = sum(effective ETH operator fees for the cluster)
 
 validatorUnits = max(
   1,
@@ -85,7 +90,7 @@ estimatedDepositWei = runwayFundingWei + liquidationCollateralWei
 
 ### Manual Operator Override Conversion
 
-Default behavior uses live operator fees.
+Default behavior starts from live operator fees and converts them to ETH first.
 
 If manual override mode is enabled, users input operator fee assumptions in `ETH/year`.
 Each manual value is converted before calculation:
@@ -135,10 +140,10 @@ totalEstimatedDepositWei = sum(cluster.estimatedDepositWei)
 
 ## Live Fee Policy
 
-Operator fees are taken from live operator records for each cluster.
+Operator fees are taken from live operator records for each cluster, then converted to ETH.
 
 - private operator with live fee `0` remains `0`
-- all other operators use live fee directly
+- all other operators use live fee converted with current `SSV -> ETH` rate
 
 No public-operator forecast strategy is used in the default estimator path.
 
@@ -169,6 +174,14 @@ Copy `.env.example` to `.env.local` and adjust as needed.
 - `SSV_SUBGRAPH_API_KEY`: optional Graph auth key
 - `SSV_API_BASE_URL`: SSV API base URL (used for cluster effective balance)
 - `SSV_API_NETWORK`: SSV API network name/path segment (default `mainnet`)
+- `SSV_TO_ETH_RATE_WEI`: optional fixed conversion rate (`1 SSV = X ETH`, encoded in wei)
+- `SSV_TO_ETH_RATE_CACHE_TTL_SECONDS`: cache TTL for live SSV/ETH rate (default `600`)
+
+Live conversion rate behavior (when `SSV_TO_ETH_RATE_WEI` is not set):
+- primary source: CoinGecko (`ssv-network` vs `eth`)
+- fallback source: Binance derived (`SSVBTC / ETHBTC`)
+- server-side cache with TTL from `SSV_TO_ETH_RATE_CACHE_TTL_SECONDS`
+- if live providers fail and a cached value exists, cached value is reused and marked as cached in the UI assumptions
 - `DEFAULT_RUNWAY_DAYS`: default runway value
 - `FORECAST_ETH_NETWORK_FEE_WEI`
 - `FORECAST_MINIMUM_LIQUIDATION_COLLATERAL_WEI`

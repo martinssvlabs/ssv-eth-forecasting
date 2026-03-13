@@ -8,13 +8,16 @@ import type {
   ForecastDataSource,
   ForecastOverrides,
   LiveCluster,
+  SsvToEthRate,
 } from '@/lib/estimate/types';
 import { getClustersByOwner } from '@/lib/ssv/getClustersByOwner';
 import { getOperators } from '@/lib/ssv/getOperators';
+import { getSsvToEthRateWei } from '@/lib/ssv/getSsvToEthRateWei';
 
 const defaultDataSource: ForecastDataSource = {
   getClustersByOwner,
   getOperators,
+  getSsvToEthRateWei,
 };
 
 const parseNonNegativeBigInt = (
@@ -65,6 +68,7 @@ const toResponseCluster = (
 const estimateCluster = async (
   cluster: LiveCluster,
   runwayDays: number,
+  operatorFeeSsvToEthRateWei: bigint,
   overrides: ForecastOverrides | undefined,
   dataSource: ForecastDataSource,
 ): Promise<ClusterEstimateResult> => {
@@ -74,6 +78,7 @@ const estimateCluster = async (
     cluster,
     operators,
     runwayDays,
+    operatorFeeSsvToEthRateWei,
     overrides,
   });
 
@@ -95,6 +100,7 @@ const estimateCluster = async (
 const resolveConfigUsed = (
   overrides: ForecastOverrides | undefined,
   clusters: ClusterEstimateResult[],
+  operatorFeeSsvToEthRate: SsvToEthRate,
 ) => {
   const manualOperatorIds = new Set<string>();
   for (const cluster of clusters) {
@@ -121,6 +127,10 @@ const resolveConfigUsed = (
       forecastConfig.forecastLiquidationThreshold,
     ).toString(),
     blocksPerDay: forecastConfig.blocksPerDay.toString(),
+    operatorFeeSsvToEthRateWei: operatorFeeSsvToEthRate.rateWei.toString(),
+    operatorFeeSsvToEthRateSource: operatorFeeSsvToEthRate.source,
+    operatorFeeSsvToEthRateFetchedAtUnix: operatorFeeSsvToEthRate.fetchedAtUnix,
+    operatorFeeSsvToEthRateStale: operatorFeeSsvToEthRate.stale,
     operatorFeeSource,
     manualOperatorOverridesCount: manualOperatorIds.size,
     assumptionsLabel: forecastConfig.assumptionsLabel,
@@ -130,6 +140,7 @@ const resolveConfigUsed = (
 const toEstimateResponse = (
   runwayDays: number,
   clusters: ClusterEstimateResult[],
+  operatorFeeSsvToEthRate: SsvToEthRate,
   overrides: ForecastOverrides | undefined,
 ): EstimateResponse => {
   const total = clusters.reduce(
@@ -142,7 +153,7 @@ const toEstimateResponse = (
     runwayDays,
     clusters: clusters.map(toResponseCluster),
     totalEstimatedDepositWei: total.toString(),
-    configUsed: resolveConfigUsed(overrides, clusters),
+    configUsed: resolveConfigUsed(overrides, clusters, operatorFeeSsvToEthRate),
     disclaimer: forecastConfig.disclaimerText,
   };
 };
@@ -153,6 +164,11 @@ export const estimateByOwnerAddress = async (
   overrides?: ForecastOverrides,
   dataSource: ForecastDataSource = defaultDataSource,
 ): Promise<EstimateResponse> => {
+  const operatorFeeSsvToEthRate = await dataSource.getSsvToEthRateWei();
+  if (operatorFeeSsvToEthRate.rateWei <= 0n) {
+    throw new Error('Invalid SSV to ETH conversion rate');
+  }
+
   const clusters = await dataSource.getClustersByOwner(owner);
 
   if (clusters.length === 0) {
@@ -161,9 +177,20 @@ export const estimateByOwnerAddress = async (
 
   const estimates = await Promise.all(
     clusters.map((cluster) =>
-      estimateCluster(cluster, runwayDays, overrides, dataSource),
+      estimateCluster(
+        cluster,
+        runwayDays,
+        operatorFeeSsvToEthRate.rateWei,
+        overrides,
+        dataSource,
+      ),
     ),
   );
 
-  return toEstimateResponse(runwayDays, estimates, overrides);
+  return toEstimateResponse(
+    runwayDays,
+    estimates,
+    operatorFeeSsvToEthRate,
+    overrides,
+  );
 };

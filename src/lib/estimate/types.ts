@@ -21,6 +21,8 @@ export type ForecastConfig = {
   ssvSubgraphApiKey?: string;
   ssvApiBaseUrl: string;
   ssvApiNetwork: string;
+  ssvToEthRateWeiOverride?: bigint;
+  ssvToEthRateCacheTtlSeconds: number;
   defaultRunwayDays: number;
   forecastEthNetworkFeeWei: bigint;
   forecastMinimumLiquidationCollateralWei: bigint;
@@ -110,6 +112,13 @@ export type ClusterEstimateResponseItem = {
   }>;
 };
 
+export type SsvToEthRate = {
+  rateWei: bigint;
+  source: 'env_override' | 'coingecko' | 'binance_derived';
+  fetchedAtUnix: number;
+  stale: boolean;
+};
+
 export type EstimateResponse = {
   mode: InputMode;
   runwayDays: number;
@@ -120,6 +129,10 @@ export type EstimateResponse = {
     minimumLiquidationCollateralWei: string;
     liquidationThreshold: string;
     blocksPerDay: string;
+    operatorFeeSsvToEthRateWei: string;
+    operatorFeeSsvToEthRateSource: SsvToEthRate['source'];
+    operatorFeeSsvToEthRateFetchedAtUnix: number;
+    operatorFeeSsvToEthRateStale: boolean;
     operatorFeeSource: 'live' | 'manualOverride';
     manualOperatorOverridesCount: number;
     assumptionsLabel: string;
@@ -136,4 +149,5 @@ export type EstimateRequestBody = {
 export type ForecastDataSource = {
   getClustersByOwner: (owner: string) => Promise<LiveCluster[]>;
   getOperators: (operatorIds: string[]) => Promise<LiveOperator[]>;
+  getSsvToEthRateWei: () => Promise<SsvToEthRate>;
 };

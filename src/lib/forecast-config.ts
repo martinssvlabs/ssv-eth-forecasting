@@ -21,6 +21,21 @@ const parseBigIntEnv = (envKey: string, fallback: bigint): bigint => {
   }
 };
 
+const parseOptionalPositiveBigIntEnv = (
+  envKey: string,
+): bigint | undefined => {
+  const value = process.env[envKey];
+  if (!value || value.trim() === '') return undefined;
+
+  try {
+    const parsed = BigInt(value.trim());
+    if (parsed > 0n) return parsed;
+    return undefined;
+  } catch {
+    return undefined;
+  }
+};
+
 const parseNumberEnv = (envKey: string, fallback: number): number => {
   const value = process.env[envKey];
   if (!value) return fallback;
@@ -35,6 +50,11 @@ const createForecastConfig = (): ForecastConfig => {
     ssvSubgraphApiKey: process.env.SSV_SUBGRAPH_API_KEY,
     ssvApiBaseUrl: process.env.SSV_API_BASE_URL || DEFAULT_SSV_API_BASE_URL,
     ssvApiNetwork: process.env.SSV_API_NETWORK || DEFAULT_SSV_API_NETWORK,
+    ssvToEthRateWeiOverride: parseOptionalPositiveBigIntEnv('SSV_TO_ETH_RATE_WEI'),
+    ssvToEthRateCacheTtlSeconds: parseNumberEnv(
+      'SSV_TO_ETH_RATE_CACHE_TTL_SECONDS',
+      600,
+    ),
     defaultRunwayDays: parseNumberEnv('DEFAULT_RUNWAY_DAYS', 365),
     forecastEthNetworkFeeWei: parseBigIntEnv(
       'FORECAST_ETH_NETWORK_FEE_WEI',

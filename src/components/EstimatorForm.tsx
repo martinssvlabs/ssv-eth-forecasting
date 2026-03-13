@@ -581,7 +581,7 @@ export function EstimatorForm({ defaults }: EstimatorFormProps) {
             </li>
             <li>
               By default, operator fees come from live operator records for each
-              cluster.
+              cluster and are converted to ETH using the current SSV/ETH rate.
             </li>
             <li>
               It combines live cluster state with your fee and collateral
