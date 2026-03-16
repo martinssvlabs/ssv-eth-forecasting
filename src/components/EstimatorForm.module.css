@@ -437,6 +437,84 @@
   }
 }
 
+:global(html[data-theme='dark']) .panel {
+  background: linear-gradient(160deg, #132235 0%, #102031 58%, #0f1d2d 100%);
+}
+
+:global(html[data-theme='dark']) .methodBox {
+  border-color: #2a4460;
+  background: #15283b;
+}
+
+:global(html[data-theme='dark']) .methodBox summary {
+  color: #bdd8f3;
+}
+
+:global(html[data-theme='dark']) .field input,
+:global(html[data-theme='dark']) .field textarea,
+:global(html[data-theme='dark']) .field select {
+  border-color: #35516e;
+  background: #102235;
+  color: #e5f0fb;
+}
+
+:global(html[data-theme='dark']) .field input::placeholder,
+:global(html[data-theme='dark']) .field textarea::placeholder {
+  color: #8fb0cf;
+}
+
+:global(html[data-theme='dark']) .toggleAdvanced {
+  border-color: #35516d;
+  background: #17324a;
+  color: #d1e7fa;
+}
+
+:global(html[data-theme='dark']) .toggleAdvanced:hover {
+  background: #1d3b56;
+}
+
+:global(html[data-theme='dark']) .manualModeBox {
+  border-color: #2d475f;
+  background: #142538;
+}
+
+:global(html[data-theme='dark']) .manualWarning {
+  color: #f6d8a5;
+  background: #3b2d17;
+  border-color: #6c542b;
+}
+
+:global(html[data-theme='dark']) .manualSummaryChip {
+  border-color: #335170;
+  background: #183149;
+  color: #c8ddf1;
+}
+
+:global(html[data-theme='dark']) .manualClusterPicker {
+  border-color: #335070;
+  background: #14293f;
+}
+
+:global(html[data-theme='dark']) .advanced {
+  border-color: #35516d;
+  background: #112336;
+}
+
+:global(html[data-theme='dark']) .resetDefaultsButton {
+  border-color: #335170;
+  background: #17324a;
+  color: #d6e9fb;
+}
+
+:global(html[data-theme='dark']) .resetDefaultsButton:hover {
+  background: #1d3b56;
+}
+
+:global(html[data-theme='dark']) .submitButton {
+  background: linear-gradient(135deg, #2a5a85 0%, #347ab0 55%, #4a98cb 100%);
+  color: #f7fbff;
+}
+
 @media (max-width: 700px) {
   .tooltipContent {
     left: 0;

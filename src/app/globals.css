@@ -8,6 +8,64 @@
   --panel-shadow: 0 24px 48px rgb(17 45 75 / 8%);
   --accent: #0f5fa7;
   --accent-soft: #e7f2ff;
+  --focus-outline: #6aa2df;
+
+  --body-radial-a: #dcecff;
+  --body-radial-b: #e7f4ff;
+  --body-gradient-top: #eef5fb;
+  --body-gradient-bottom: #f8fbfe;
+
+  --header-grad-start: #ffffff;
+  --header-grad-mid: #f7fbff;
+  --header-grad-end: #f3f9ff;
+  --meta-pill-border: #bcd3ea;
+  --meta-pill-bg: #f2f8ff;
+  --meta-pill-text: #2a5f90;
+
+  --theme-toggle-border: #bcd3ea;
+  --theme-toggle-bg: #f2f8ff;
+  --theme-toggle-bg-hover: #e7f2ff;
+  --theme-toggle-text: #2a5f90;
+
+  --page-glow-primary: #bdddff;
+  --page-glow-primary-fade: #e8f4ff;
+  --page-glow-secondary: #cce9ff;
+  --page-glow-secondary-fade: #edf8ff;
+}
+
+html[data-theme='dark'] {
+  --ink: #e7f1fb;
+  --muted: #a7bfd7;
+  --muted-strong: #c2d4e7;
+  --page-bg: #0b1623;
+  --panel-bg: #132235;
+  --panel-border: #27415b;
+  --panel-shadow: 0 26px 48px rgb(5 15 28 / 42%);
+  --accent: #7ab8f1;
+  --accent-soft: #1a2f46;
+  --focus-outline: #8dc1f5;
+
+  --body-radial-a: #17314a;
+  --body-radial-b: #1a2d42;
+  --body-gradient-top: #0b1623;
+  --body-gradient-bottom: #0e1c2b;
+
+  --header-grad-start: #142537;
+  --header-grad-mid: #112235;
+  --header-grad-end: #0f1f31;
+  --meta-pill-border: #315275;
+  --meta-pill-bg: #1a3248;
+  --meta-pill-text: #b8d6f1;
+
+  --theme-toggle-border: #35608a;
+  --theme-toggle-bg: #17324d;
+  --theme-toggle-bg-hover: #1e4263;
+  --theme-toggle-text: #d2e8fb;
+
+  --page-glow-primary: #244d72;
+  --page-glow-primary-fade: #1a3854;
+  --page-glow-secondary: #1e3d5b;
+  --page-glow-secondary-fade: #16324a;
 }
 
 * {
@@ -24,12 +82,13 @@ body {
   margin: 0;
   color: var(--ink);
   background:
-    radial-gradient(1200px 520px at 12% -8%, #dcecff 0%, transparent 50%),
-    radial-gradient(1000px 460px at 92% 0%, #e7f4ff 0%, transparent 52%),
-    linear-gradient(180deg, #eef5fb 0%, var(--page-bg) 35%, #f8fbfe 100%);
+    radial-gradient(1200px 520px at 12% -8%, var(--body-radial-a) 0%, transparent 50%),
+    radial-gradient(1000px 460px at 92% 0%, var(--body-radial-b) 0%, transparent 52%),
+    linear-gradient(180deg, var(--body-gradient-top) 0%, var(--page-bg) 35%, var(--body-gradient-bottom) 100%);
   font-family: var(--font-body), 'Segoe UI', sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  transition: background-color 0.2s ease, color 0.2s ease;
 }
 
 a {
@@ -38,6 +97,6 @@ a {
 }
 
 :focus-visible {
-  outline: 2px solid #6aa2df;
+  outline: 2px solid var(--focus-outline);
   outline-offset: 2px;
 }

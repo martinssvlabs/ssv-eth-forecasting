@@ -1,4 +1,5 @@
 import { EstimatorForm } from '@/components/EstimatorForm';
+import { ThemeToggle } from '@/components/ThemeToggle';
 import { publicForecastDefaults } from '@/lib/forecast-config';
 import styles from './page.module.css';
 
@@ -11,8 +12,11 @@ export default function Home() {
       <div className={styles.container}>
         <header className={styles.header}>
           <div className={styles.metaRow}>
-            <p className={styles.kicker}>SSV Mainnet Forecast Tool</p>
-            <span className={styles.metaPill}>Forecast Only</span>
+            <div className={styles.metaRowLeft}>
+              <p className={styles.kicker}>SSV Mainnet Forecast Tool</p>
+              <span className={styles.metaPill}>Forecast Only</span>
+            </div>
+            <ThemeToggle />
           </div>
 
           <h1>ETH Deposit Estimator for Cluster Migration</h1>
