@@ -214,9 +214,19 @@
 }
 
 .ownerSubtotalRow td {
-  background: #f7fbff;
-  font-weight: 650;
-  color: #2f6088;
+  background: linear-gradient(180deg, #eef7ff 0%, #e6f2ff 100%);
+  font-weight: 700;
+  color: #1f537e;
+  border-top: 1px solid #bcd6ec;
+  border-bottom: 1px solid #bcd6ec;
+}
+
+.ownerSubtotalRow td:first-child {
+  border-left: 3px solid #4a8ec5;
+}
+
+.ownerSubtotalRow td:last-child {
+  color: #103f66;
 }
 
 .codeCell {
