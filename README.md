@@ -19,7 +19,7 @@ For **mainnet pre-migration forecasting**, those ETH-era values are not fully li
 
 - Estimate all clusters by one owner or many owners in one run (with total)
 - Runway input (default: 365 days)
-- Advanced forecast parameter overrides in staker-friendly ETH/day units
+- Advanced forecast parameter overrides in staker-friendly ETH/year and ETH units
 - ETH-first per-cluster breakdown (estimated deposit, runway funding, collateral used)
 - Operational context per cluster (active validators, burn rate in ETH/day + ETH/year)
 - Collapsible protocol details (gwei/block and block-based internals)

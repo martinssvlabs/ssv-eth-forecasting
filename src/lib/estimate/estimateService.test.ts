@@ -171,7 +171,7 @@ describe('estimateByOwnerAddress', () => {
     expect(result.failedOwners).toEqual([
       {
         ownerAddress: '0x000000000000000000000000000000000000beef',
-        error: 'Owner lookup temporarily unavailable',
+        error: 'Could not load this owner from upstream data sources',
       },
     ]);
     expect(result.clusters).toHaveLength(1);

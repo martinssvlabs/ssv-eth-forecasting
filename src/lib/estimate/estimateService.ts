@@ -229,6 +229,17 @@ type OwnerClustersFailure = {
   error: string;
 };
 
+const toSafeOwnerLoadError = (message: string): string => {
+  if (
+    message.includes('No clusters found') ||
+    message.includes('No estimable clusters found')
+  ) {
+    return message;
+  }
+
+  return 'Could not load this owner from upstream data sources';
+};
+
 const loadOwnerClusters = async (
   owner: string,
   dataSource: ForecastDataSource,
@@ -246,12 +257,14 @@ const loadOwnerClusters = async (
       clusters,
     };
   } catch (error) {
+    const rawMessage =
+      error instanceof Error
+        ? error.message
+        : 'Unknown error while loading owner clusters';
+
     return {
       owner,
-      error:
-        error instanceof Error
-          ? error.message
-          : 'Unknown error while loading owner clusters',
+      error: toSafeOwnerLoadError(rawMessage),
     };
   }
 };

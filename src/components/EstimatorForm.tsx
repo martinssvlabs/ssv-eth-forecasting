@@ -934,7 +934,10 @@ export function EstimatorForm({ defaults }: EstimatorFormProps) {
           ) : null}
 
           <button type="submit" className={styles.submitButton} disabled={loading}>
-            {loading ? 'Calculating...' : 'Calculate estimate'}
+            {loading ? <span className={styles.submitProgress} aria-hidden="true" /> : null}
+            <span className={styles.submitButtonLabel}>
+              {loading ? 'Calculating...' : 'Calculate estimate'}
+            </span>
           </button>
         </form>
       </section>

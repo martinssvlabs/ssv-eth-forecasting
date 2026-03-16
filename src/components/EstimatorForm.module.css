@@ -388,6 +388,8 @@
   font-weight: 700;
   cursor: pointer;
   letter-spacing: 0.01em;
+  position: relative;
+  overflow: hidden;
 }
 
 .submitButton:hover {
@@ -397,6 +399,42 @@
 .submitButton:disabled {
   opacity: 0.7;
   cursor: wait;
+}
+
+.submitButtonLabel {
+  position: relative;
+  z-index: 2;
+}
+
+.submitProgress {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    rgb(255 255 255 / 10%) 0%,
+    rgb(255 255 255 / 34%) 50%,
+    rgb(255 255 255 / 10%) 100%
+  );
+  transform-origin: left center;
+  animation: submitProgressFill 1.2s ease-in-out infinite;
+  z-index: 1;
+}
+
+@keyframes submitProgressFill {
+  0% {
+    transform: scaleX(0);
+    opacity: 0.35;
+  }
+
+  70% {
+    transform: scaleX(1);
+    opacity: 0.9;
+  }
+
+  100% {
+    transform: scaleX(1);
+    opacity: 0;
+  }
 }
 
 @media (max-width: 700px) {

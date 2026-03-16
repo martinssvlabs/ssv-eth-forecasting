@@ -6,6 +6,10 @@ import type { EstimateRequestBody } from '@/lib/estimate/types';
 import { isAddress } from 'viem';
 import { z } from 'zod';
 
+const MAX_OWNER_ADDRESSES = 100;
+const MAX_RUNWAY_DAYS = 3650;
+const MAX_MANUAL_OPERATOR_OVERRIDES = 5000;
+
 const overrideSchema = z
   .object({
     networkFeeWei: z
@@ -38,6 +42,14 @@ const overrideSchema = z
     if (value.manualOperatorFeeOverrideEnabled !== true) return;
 
     const entries = Object.entries(value.manualOperatorFeesWeiById ?? {});
+    if (entries.length > MAX_MANUAL_OPERATOR_OVERRIDES) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: `manualOperatorFeesWeiById supports at most ${MAX_MANUAL_OPERATOR_OVERRIDES} entries`,
+      });
+      return;
+    }
+
     if (entries.length === 0) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
@@ -50,8 +62,17 @@ const overrideSchema = z
 
 const requestSchema = z.object({
   ownerAddress: z.string().min(1).optional(),
-  ownerAddresses: z.array(z.string().min(1)).optional(),
-  runwayDays: z.number().positive(),
+  ownerAddresses: z
+    .array(z.string().min(1))
+    .max(
+      MAX_OWNER_ADDRESSES,
+      `ownerAddresses supports at most ${MAX_OWNER_ADDRESSES} addresses`,
+    )
+    .optional(),
+  runwayDays: z
+    .number()
+    .positive()
+    .max(MAX_RUNWAY_DAYS, `runwayDays must be <= ${MAX_RUNWAY_DAYS}`),
   overrides: overrideSchema,
 })
   .superRefine((value, ctx) => {

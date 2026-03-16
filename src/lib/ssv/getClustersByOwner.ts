@@ -229,7 +229,6 @@ const attachApiClusterData = async (
 ): Promise<
   Array<
     ClusterSeed & {
-      clusterHash: string;
       effectiveBalanceEth: string;
       activeValidatorCount: string;
     }
@@ -237,7 +236,6 @@ const attachApiClusterData = async (
 > => {
   const result: Array<
     ClusterSeed & {
-      clusterHash: string;
       effectiveBalanceEth: string;
       activeValidatorCount: string;
     }
@@ -255,7 +253,6 @@ const attachApiClusterData = async (
 
         return {
           ...cluster,
-          clusterHash: cluster.clusterHash,
           effectiveBalanceEth,
           activeValidatorCount,
         };
