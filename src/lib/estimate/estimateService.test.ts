@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { estimateByOwnerAddress } from '@/lib/estimate/estimateService';
+import {
+  estimateByOwnerAddress,
+  estimateByOwnerAddresses,
+} from '@/lib/estimate/estimateService';
 import type { ForecastDataSource } from '@/lib/estimate/types';
 
 const mockDataSource: ForecastDataSource = {
@@ -124,5 +127,53 @@ describe('estimateByOwnerAddress', () => {
     expect(result.configUsed.operatorFeeSsvToEthRateStale).toBe(false);
     expect(first.feeSelection.every((item) => item.source === 'manual')).toBe(true);
     expect(second.feeSelection.every((item) => item.source === 'live')).toBe(true);
+  });
+
+  it('returns partial owner-batch results when one owner fails', async () => {
+    const batchDataSource: ForecastDataSource = {
+      ...mockDataSource,
+      async getClustersByOwner(owner: string) {
+        if (owner === '0x000000000000000000000000000000000000beef') {
+          throw new Error('Owner lookup temporarily unavailable');
+        }
+
+        return [
+          {
+            id: '0xcccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc',
+            owner,
+            operatorIds: ['1', '2', '3', '4'],
+            effectiveBalance: '32',
+            active: true,
+            validatorCount: '1',
+          },
+        ];
+      },
+    };
+
+    const result = await estimateByOwnerAddresses(
+      [
+        '0x000000000000000000000000000000000000dead',
+        '0x000000000000000000000000000000000000beef',
+      ],
+      30,
+      undefined,
+      batchDataSource,
+    );
+
+    expect(result.mode).toBe('ownerBatch');
+    expect(result.ownersRequested).toEqual([
+      '0x000000000000000000000000000000000000dead',
+      '0x000000000000000000000000000000000000beef',
+    ]);
+    expect(result.ownersSucceeded).toEqual([
+      '0x000000000000000000000000000000000000dead',
+    ]);
+    expect(result.failedOwners).toEqual([
+      {
+        ownerAddress: '0x000000000000000000000000000000000000beef',
+        error: 'Owner lookup temporarily unavailable',
+      },
+    ]);
+    expect(result.clusters).toHaveLength(1);
   });
 });

@@ -1,5 +1,6 @@
 'use client';
 
+import { Fragment } from 'react';
 import type { EstimateResponse } from '@/lib/estimate/types';
 import { formatEther, formatUnits } from 'viem';
 import styles from './EstimateResults.module.css';
@@ -9,6 +10,10 @@ type EstimateResultsProps = {
   loading: boolean;
   error: string | null;
 };
+
+const SUMMARY_DECIMALS = 4;
+const DETAIL_DECIMALS = 4;
+const DAILY_RATE_DECIMALS = 6;
 
 const formatEth = (valueWei: string, maximumFractionDigits = 6): string => {
   const eth = formatEther(BigInt(valueWei));
@@ -75,6 +80,11 @@ const toClusterExplorerUrl = (clusterId: string): string =>
 const shortenClusterId = (clusterId: string): string => {
   if (clusterId.length <= 22) return clusterId;
   return `${clusterId.slice(0, 10)}...${clusterId.slice(-8)}`;
+};
+
+const shortenOwnerAddress = (ownerAddress: string): string => {
+  if (ownerAddress.length <= 20) return ownerAddress;
+  return `${ownerAddress.slice(0, 8)}...${ownerAddress.slice(-6)}`;
 };
 
 const rateSourceLabel: Record<
@@ -205,7 +215,7 @@ const BreakdownCard = ({
         </div>
         <div>
           <dt>Daily burn rate</dt>
-          <dd>{formatEth(burnRateWeiPerDay.toString(), 8)} ETH/day</dd>
+          <dd>{formatEth(burnRateWeiPerDay.toString(), DAILY_RATE_DECIMALS)} ETH/day</dd>
         </div>
         <div>
           <dt>Runway</dt>
@@ -213,26 +223,26 @@ const BreakdownCard = ({
         </div>
         <div>
           <dt>Runway funding</dt>
-          <dd>{formatEth(cluster.breakdown.runwayFundingWei, 8)} ETH</dd>
+          <dd>{formatEth(cluster.breakdown.runwayFundingWei, DETAIL_DECIMALS)} ETH</dd>
         </div>
         <div>
           <dt>Liquidation collateral</dt>
-          <dd>{formatEth(cluster.breakdown.liquidationCollateralWei, 8)} ETH</dd>
+          <dd>{formatEth(cluster.breakdown.liquidationCollateralWei, DETAIL_DECIMALS)} ETH</dd>
         </div>
       </dl>
 
       <dl className={styles.operationalGrid}>
         <div>
           <dt>Operator fee</dt>
-          <dd>{formatEth(operatorCostWeiPerYear.toString(), 8)} ETH/year</dd>
+          <dd>{formatEth(operatorCostWeiPerYear.toString(), DETAIL_DECIMALS)} ETH/year</dd>
         </div>
         <div>
           <dt>Network fee</dt>
-          <dd>{formatEth(networkCostWeiPerYear.toString(), 8)} ETH/year</dd>
+          <dd>{formatEth(networkCostWeiPerYear.toString(), DETAIL_DECIMALS)} ETH/year</dd>
         </div>
         <div>
           <dt>Total burn</dt>
-          <dd>{formatEth(burnRateWeiPerYear.toString(), 8)} ETH/year</dd>
+          <dd>{formatEth(burnRateWeiPerYear.toString(), DETAIL_DECIMALS)} ETH/year</dd>
         </div>
         <div>
           <dt>Active validators</dt>
@@ -280,7 +290,7 @@ const BreakdownCard = ({
                     (
                       BigInt(item.effectiveFeeWeiPerBlock) * blocksPerYear
                     ).toString(),
-                    8,
+                    DETAIL_DECIMALS,
                   )}{' '}
                   ETH/year
                 </span>
@@ -326,7 +336,7 @@ export function EstimateResults({ result, loading, error }: EstimateResultsProps
   } else if (!result) {
     summaryContent = (
       <p className={styles.stateText}>
-        Provide an owner address, then click Calculate estimate.
+        Provide one or more owner addresses, then click Calculate estimate.
       </p>
     );
     detailContent = (
@@ -352,11 +362,32 @@ export function EstimateResults({ result, loading, error }: EstimateResultsProps
     const operatorFeeRateStale = result.configUsed.operatorFeeSsvToEthRateStale;
     const manualModeActive = result.configUsed.operatorFeeSource === 'manualOverride';
     const sortedClusters = [...result.clusters].sort((a, b) => {
+      if ((a.owner ?? '') !== (b.owner ?? '')) {
+        return (a.owner ?? '').localeCompare(b.owner ?? '');
+      }
       const aWei = BigInt(a.breakdown.estimatedDepositWei);
       const bWei = BigInt(b.breakdown.estimatedDepositWei);
       if (aWei === bWei) return 0;
       return aWei > bWei ? -1 : 1;
     });
+    const ownerGroups = (() => {
+      const groups = new Map<string, EstimateResponse['clusters']>();
+      for (const cluster of sortedClusters) {
+        const owner = cluster.owner ?? 'unknown';
+        const current = groups.get(owner) ?? [];
+        current.push(cluster);
+        groups.set(owner, current);
+      }
+      return Array.from(groups.entries()).map(([owner, clusters]) => ({
+        owner,
+        clusters,
+        subtotalEstimatedWei: clusters.reduce(
+          (sum, cluster) => sum + BigInt(cluster.breakdown.estimatedDepositWei),
+          0n,
+        ),
+      }));
+    })();
+    const showOwnerColumn = ownerGroups.length > 1;
 
     const totals = result.clusters.reduce(
       (acc, cluster) => {
@@ -380,6 +411,13 @@ export function EstimateResults({ result, loading, error }: EstimateResultsProps
         <div className={`${styles.healthBanner} ${styles[`health_${health.tone}`]}`}>
           {health.message}
         </div>
+        {result.failedOwners.length > 0 ? (
+          <div className={`${styles.healthBanner} ${styles.health_warning}`}>
+            {result.failedOwners.length} owner
+            {result.failedOwners.length === 1 ? '' : 's'} failed and {result.ownersSucceeded.length}{' '}
+            owner{result.ownersSucceeded.length === 1 ? '' : 's'} succeeded in this batch.
+          </div>
+        ) : null}
 
         <div className={styles.summaryTop}>
           <div className={styles.kpiCard}>
@@ -394,16 +432,23 @@ export function EstimateResults({ result, loading, error }: EstimateResultsProps
 
           <div className={styles.summaryMetrics}>
             <p>
-              <strong>Operator fee:</strong> {formatEth(totals.operator.toString(), 8)} ETH/year
+              <strong>Operator fee:</strong> {formatEth(totals.operator.toString(), SUMMARY_DECIMALS)} ETH/year
             </p>
             <p>
-              <strong>Network fee:</strong> {formatEth(totals.network.toString(), 8)} ETH/year
+              <strong>Network fee:</strong> {formatEth(totals.network.toString(), SUMMARY_DECIMALS)} ETH/year
             </p>
             <p>
-              <strong>Runway funding:</strong> {formatEth(totals.runwayFunding.toString(), 8)} ETH
+              <strong>Runway funding:</strong> {formatEth(totals.runwayFunding.toString(), SUMMARY_DECIMALS)} ETH
             </p>
             <p>
-              <strong>Collateral requirement:</strong> {formatEth(totals.collateral.toString(), 8)} ETH
+              <strong>Collateral requirement:</strong> {formatEth(totals.collateral.toString(), SUMMARY_DECIMALS)} ETH
+            </p>
+            <p>
+              <strong>Owners processed:</strong> {result.ownersSucceeded.length}/
+              {result.ownersRequested.length}
+            </p>
+            <p>
+              <strong>Clusters processed:</strong> {result.clusters.length}
             </p>
           </div>
         </div>
@@ -412,6 +457,7 @@ export function EstimateResults({ result, loading, error }: EstimateResultsProps
           <table className={styles.table}>
             <thead>
               <tr>
+                {showOwnerColumn ? <th>Owner</th> : null}
                 <th>Cluster ID</th>
                 <th className={styles.numberCol}>Effective balance</th>
                 <th className={styles.numberCol}>Daily burn rate</th>
@@ -423,39 +469,57 @@ export function EstimateResults({ result, loading, error }: EstimateResultsProps
               </tr>
             </thead>
             <tbody>
-              {sortedClusters.map((cluster) => {
-                const dailyBurnWei =
-                  BigInt(cluster.breakdown.burnRateWeiPerBlock) * blocksPerDay;
+              {ownerGroups.map((group) => (
+                <Fragment key={group.owner}>
+                  {group.clusters.map((cluster) => {
+                    const dailyBurnWei =
+                      BigInt(cluster.breakdown.burnRateWeiPerBlock) * blocksPerDay;
 
-                return (
-                  <tr key={cluster.clusterId}>
-                    <td className={styles.codeCell}>
-                      <a
-                        href={toClusterExplorerUrl(cluster.clusterId)}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className={styles.clusterLink}
-                        title={cluster.clusterId}
-                      >
-                        {shortenClusterId(cluster.clusterId)}
-                      </a>
+                    return (
+                      <tr key={cluster.clusterId}>
+                        {showOwnerColumn ? (
+                          <td title={group.owner}>{shortenOwnerAddress(group.owner)}</td>
+                        ) : null}
+                        <td className={styles.codeCell}>
+                          <a
+                            href={toClusterExplorerUrl(cluster.clusterId)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className={styles.clusterLink}
+                            title={cluster.clusterId}
+                          >
+                            {shortenClusterId(cluster.clusterId)}
+                          </a>
+                        </td>
+                        <td className={styles.numberCell}>
+                          {formatBalanceEth(cluster.effectiveBalance)} ETH
+                        </td>
+                    <td className={styles.numberCell}>
+                      {formatEth(dailyBurnWei.toString(), DAILY_RATE_DECIMALS)} ETH/day
                     </td>
                     <td className={styles.numberCell}>
-                      {formatBalanceEth(cluster.effectiveBalance)} ETH
+                      {formatEth(cluster.breakdown.liquidationCollateralWei, DETAIL_DECIMALS)} ETH
                     </td>
-                    <td className={styles.numberCell}>
-                      {formatEth(dailyBurnWei.toString(), 8)} ETH/day
-                    </td>
-                    <td className={styles.numberCell}>
-                      {formatEth(cluster.breakdown.liquidationCollateralWei, 8)} ETH
-                    </td>
-                    <td className={styles.numberCell}>{cluster.runwayDays} days</td>
-                    <td className={`${styles.numberCell} ${styles.estimatedCell}`}>
-                      {formatEth(cluster.breakdown.estimatedDepositWei)} ETH
-                    </td>
-                  </tr>
-                );
-              })}
+                        <td className={styles.numberCell}>{cluster.runwayDays} days</td>
+                        <td className={`${styles.numberCell} ${styles.estimatedCell}`}>
+                          {formatEth(cluster.breakdown.estimatedDepositWei)} ETH
+                        </td>
+                      </tr>
+                    );
+                  })}
+                  {showOwnerColumn ? (
+                    <tr className={styles.ownerSubtotalRow}>
+                      <td colSpan={showOwnerColumn ? 5 : 4}>
+                        Owner subtotal ({shortenOwnerAddress(group.owner)})
+                      </td>
+                      <td className={styles.numberCell} />
+                      <td className={`${styles.numberCell} ${styles.estimatedCell}`}>
+                        {formatEth(group.subtotalEstimatedWei.toString())} ETH
+                      </td>
+                    </tr>
+                  ) : null}
+                </Fragment>
+              ))}
             </tbody>
           </table>
         </div>
@@ -464,15 +528,40 @@ export function EstimateResults({ result, loading, error }: EstimateResultsProps
 
     detailContent = (
       <>
-        <div className={styles.cards}>
-          {sortedClusters.map((cluster) => (
-            <BreakdownCard
-              key={cluster.clusterId}
-              cluster={cluster}
-              configUsed={result.configUsed}
-            />
-          ))}
-        </div>
+        {showOwnerColumn ? (
+          <div className={styles.ownerGroups}>
+            {ownerGroups.map((group) => (
+              <section key={group.owner} className={styles.ownerGroupSection}>
+                <header className={styles.ownerGroupHeader}>
+                  <h4 title={group.owner}>{group.owner}</h4>
+                  <p>
+                    {group.clusters.length} clusters • subtotal{' '}
+                    {formatEth(group.subtotalEstimatedWei.toString())} ETH
+                  </p>
+                </header>
+                <div className={styles.cards}>
+                  {group.clusters.map((cluster) => (
+                    <BreakdownCard
+                      key={cluster.clusterId}
+                      cluster={cluster}
+                      configUsed={result.configUsed}
+                    />
+                  ))}
+                </div>
+              </section>
+            ))}
+          </div>
+        ) : (
+          <div className={styles.cards}>
+            {sortedClusters.map((cluster) => (
+              <BreakdownCard
+                key={cluster.clusterId}
+                cluster={cluster}
+                configUsed={result.configUsed}
+              />
+            ))}
+          </div>
+        )}
 
         <div className={styles.bottomGrid}>
           <section className={styles.assumptionsBox}>
@@ -482,7 +571,7 @@ export function EstimateResults({ result, loading, error }: EstimateResultsProps
                 <strong>Operator fee source:</strong>{' '}
                 {manualModeActive
                   ? `manual override (${result.configUsed.manualOperatorOverridesCount} operators)`
-                  : 'live operator data from mainnet subgraph (converted to ETH)'}
+                  : 'live operator data from mainnet data sources (converted to ETH)'}
               </li>
               <li>
                 <strong>Operator fee conversion:</strong> 1 SSV ={' '}
@@ -498,7 +587,7 @@ export function EstimateResults({ result, loading, error }: EstimateResultsProps
               </li>
               <li>
                 <strong>Minimum liquidation collateral:</strong>{' '}
-                {formatEth(result.configUsed.minimumLiquidationCollateralWei, 8)} ETH
+                {formatEth(result.configUsed.minimumLiquidationCollateralWei, DETAIL_DECIMALS)} ETH
               </li>
               <li>
                 <strong>Blocks before liquidation:</strong>{' '}
@@ -510,6 +599,14 @@ export function EstimateResults({ result, loading, error }: EstimateResultsProps
               <li>
                 <strong>Blocks/day assumption:</strong> {result.configUsed.blocksPerDay}
               </li>
+              {result.failedOwners.length > 0 ? (
+                <li>
+                  <strong>Owners skipped:</strong>{' '}
+                  {result.failedOwners
+                    .map((item) => shortenOwnerAddress(item.ownerAddress))
+                    .join(', ')}
+                </li>
+              ) : null}
             </ul>
           </section>
 

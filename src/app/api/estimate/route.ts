@@ -1,5 +1,6 @@
 import {
   estimateByOwnerAddress,
+  estimateByOwnerAddresses,
 } from '@/lib/estimate/estimateService';
 import type { EstimateRequestBody } from '@/lib/estimate/types';
 import { isAddress } from 'viem';
@@ -48,21 +49,63 @@ const overrideSchema = z
   .optional();
 
 const requestSchema = z.object({
-  ownerAddress: z.string().min(1),
+  ownerAddress: z.string().min(1).optional(),
+  ownerAddresses: z.array(z.string().min(1)).optional(),
   runwayDays: z.number().positive(),
   overrides: overrideSchema,
-});
+})
+  .superRefine((value, ctx) => {
+    const hasSingle = Boolean(value.ownerAddress && value.ownerAddress.trim());
+    const hasMany = Array.isArray(value.ownerAddresses) && value.ownerAddresses.length > 0;
+
+    if (!hasSingle && !hasMany) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Provide ownerAddress or ownerAddresses',
+      });
+    }
+
+    if (hasSingle && hasMany) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Use either ownerAddress or ownerAddresses, not both',
+      });
+    }
+  });
 
 const validateBody = (body: EstimateRequestBody) => {
   const parsed = requestSchema.parse(body);
 
-  if (!isAddress(parsed.ownerAddress.trim())) {
-    throw new Error('Owner address must be a valid EVM address');
+  const ownerAddressesRaw =
+    parsed.ownerAddress && parsed.ownerAddress.trim().length > 0
+      ? [parsed.ownerAddress]
+      : (parsed.ownerAddresses ?? []);
+
+  const ownerAddresses = [...new Set(ownerAddressesRaw.map((owner) => owner.trim().toLowerCase()))]
+    .filter((owner) => owner.length > 0);
+
+  if (ownerAddresses.length === 0) {
+    throw new Error('At least one owner address is required');
+  }
+
+  const invalidOwners = ownerAddresses.filter((owner) => !isAddress(owner));
+  if (invalidOwners.length > 0) {
+    throw new Error(`Invalid owner address(es): ${invalidOwners.join(', ')}`);
+  }
+
+  if (
+    parsed.overrides?.manualOperatorFeeOverrideEnabled === true &&
+    ownerAddresses.length !== 1
+  ) {
+    throw new Error(
+      'Manual operator fee override is available only for single-owner estimates',
+    );
   }
 
   return {
-    ...parsed,
-    ownerAddress: parsed.ownerAddress.trim(),
+    runwayDays: parsed.runwayDays,
+    overrides: parsed.overrides,
+    ownerAddresses,
   };
 };
 
@@ -71,11 +114,18 @@ export async function POST(request: Request) {
     const json = (await request.json()) as EstimateRequestBody;
     const body = validateBody(json);
 
-    const result = await estimateByOwnerAddress(
-      body.ownerAddress,
-      body.runwayDays,
-      body.overrides,
-    );
+    const result =
+      body.ownerAddresses.length === 1
+        ? await estimateByOwnerAddress(
+            body.ownerAddresses[0],
+            body.runwayDays,
+            body.overrides,
+          )
+        : await estimateByOwnerAddresses(
+            body.ownerAddresses,
+            body.runwayDays,
+            body.overrides,
+          );
 
     return Response.json(result, { status: 200 });
   } catch (error) {
@@ -97,6 +147,8 @@ export async function POST(request: Request) {
       'No estimable clusters found',
       'not found',
       'required',
+      'Invalid owner address',
+      'single-owner estimates',
     ];
 
     const status =

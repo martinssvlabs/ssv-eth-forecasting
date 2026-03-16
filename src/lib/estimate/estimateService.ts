@@ -15,6 +15,8 @@ import { getClustersByOwner } from '@/lib/ssv/getClustersByOwner';
 import { getOperators } from '@/lib/ssv/getOperators';
 import { getSsvToEthRateWei } from '@/lib/ssv/getSsvToEthRateWei';
 
+const OWNER_FETCH_CONCURRENCY = 4;
+
 const defaultDataSource: ForecastDataSource = {
   getClustersByOwner,
   getOperators,
@@ -156,38 +158,147 @@ const toEstimateResponse = (
   clusters: ClusterEstimateResult[],
   operatorFeeSsvToEthRate: SsvToEthRate,
   overrides: ForecastOverrides | undefined,
+  ownerSummary: {
+    ownersRequested: string[];
+    ownersSucceeded: string[];
+    failedOwners: Array<{
+      ownerAddress: string;
+      error: string;
+    }>;
+  },
 ): EstimateResponse => {
   const total = clusters.reduce(
     (sum, item) => sum + item.breakdown.estimatedDepositWei,
     0n,
   );
 
+  const mode = ownerSummary.ownersRequested.length > 1 ? 'ownerBatch' : 'owner';
+
   return {
-    mode: 'owner',
+    mode,
     runwayDays,
     clusters: clusters.map(toResponseCluster),
     totalEstimatedDepositWei: total.toString(),
+    ownersRequested: ownerSummary.ownersRequested,
+    ownersSucceeded: ownerSummary.ownersSucceeded,
+    failedOwners: ownerSummary.failedOwners,
     configUsed: resolveConfigUsed(overrides, clusters, operatorFeeSsvToEthRate),
     disclaimer: forecastConfig.disclaimerText,
   };
 };
 
-export const estimateByOwnerAddress = async (
+const normalizeOwners = (ownerAddresses: string[]): string[] => {
+  const normalized = ownerAddresses
+    .map((owner) => owner.trim().toLowerCase())
+    .filter((owner) => owner.length > 0);
+
+  return [...new Set(normalized)];
+};
+
+const mapWithConcurrency = async <T, R>(
+  items: T[],
+  concurrency: number,
+  mapper: (item: T) => Promise<R>,
+): Promise<R[]> => {
+  const limit = Math.max(1, Math.min(concurrency, items.length || 1));
+  const results: R[] = new Array(items.length);
+  let nextIndex = 0;
+
+  const runWorker = async () => {
+    while (true) {
+      const index = nextIndex;
+      nextIndex += 1;
+      if (index >= items.length) {
+        return;
+      }
+      results[index] = await mapper(items[index]);
+    }
+  };
+
+  await Promise.all(Array.from({ length: limit }, runWorker));
+  return results;
+};
+
+type OwnerClustersSuccess = {
+  owner: string;
+  clusters: LiveCluster[];
+};
+
+type OwnerClustersFailure = {
+  owner: string;
+  error: string;
+};
+
+const loadOwnerClusters = async (
   owner: string,
+  dataSource: ForecastDataSource,
+): Promise<OwnerClustersSuccess | OwnerClustersFailure> => {
+  try {
+    const clusters = await dataSource.getClustersByOwner(owner);
+    if (clusters.length === 0) {
+      return {
+        owner,
+        error: 'No clusters found for the given owner address',
+      };
+    }
+    return {
+      owner,
+      clusters,
+    };
+  } catch (error) {
+    return {
+      owner,
+      error:
+        error instanceof Error
+          ? error.message
+          : 'Unknown error while loading owner clusters',
+    };
+  }
+};
+
+export const estimateByOwnerAddresses = async (
+  ownerAddresses: string[],
   runwayDays: number,
   overrides?: ForecastOverrides,
   dataSource: ForecastDataSource = defaultDataSource,
 ): Promise<EstimateResponse> => {
+  const normalizedOwners = normalizeOwners(ownerAddresses);
+  if (normalizedOwners.length === 0) {
+    throw new Error('At least one owner address is required');
+  }
+
   const operatorFeeSsvToEthRate = await dataSource.getSsvToEthRateWei();
   if (operatorFeeSsvToEthRate.rateWei <= 0n) {
     throw new Error('Invalid SSV to ETH conversion rate');
   }
 
-  const clusters = await dataSource.getClustersByOwner(owner);
+  const ownerClusterResults = await mapWithConcurrency(
+    normalizedOwners,
+    OWNER_FETCH_CONCURRENCY,
+    async (owner) => loadOwnerClusters(owner, dataSource),
+  );
 
-  if (clusters.length === 0) {
-    throw new Error('No clusters found for the given owner address');
+  const successfulOwners = ownerClusterResults.filter(
+    (item): item is OwnerClustersSuccess => 'clusters' in item,
+  );
+  const failedOwners = ownerClusterResults
+    .filter((item): item is OwnerClustersFailure => 'error' in item)
+    .map((item) => ({
+      ownerAddress: item.owner,
+      error: item.error,
+    }));
+
+  if (successfulOwners.length === 0) {
+    const reason = failedOwners[0]?.error ?? 'No clusters found for given owner address(es)';
+    throw new Error(reason);
   }
+
+  const clusters = successfulOwners.flatMap((item) =>
+    item.clusters.map((cluster) => ({
+      ...cluster,
+      owner: cluster.owner ?? item.owner,
+    })),
+  );
 
   const uniqueOperatorIds = [...new Set(clusters.flatMap((cluster) => cluster.operatorIds))];
   const operators = await dataSource.getOperators(uniqueOperatorIds);
@@ -217,5 +328,19 @@ export const estimateByOwnerAddress = async (
     estimates,
     operatorFeeSsvToEthRate,
     overrides,
+    {
+      ownersRequested: normalizedOwners,
+      ownersSucceeded: successfulOwners.map((item) => item.owner),
+      failedOwners,
+    },
   );
+};
+
+export const estimateByOwnerAddress = async (
+  owner: string,
+  runwayDays: number,
+  overrides?: ForecastOverrides,
+  dataSource: ForecastDataSource = defaultDataSource,
+): Promise<EstimateResponse> => {
+  return estimateByOwnerAddresses([owner], runwayDays, overrides, dataSource);
 };

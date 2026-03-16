@@ -213,6 +213,12 @@
   border-bottom: none;
 }
 
+.ownerSubtotalRow td {
+  background: #f7fbff;
+  font-weight: 650;
+  color: #2f6088;
+}
+
 .codeCell {
   width: 35%;
   min-width: 230px;
@@ -240,6 +246,35 @@
 .cards {
   display: grid;
   gap: 0.78rem;
+}
+
+.ownerGroups {
+  display: grid;
+  gap: 0.9rem;
+}
+
+.ownerGroupSection {
+  border: 1px solid #d5e3f2;
+  border-radius: 14px;
+  background: #fafeff;
+  padding: 0.8rem;
+}
+
+.ownerGroupHeader {
+  margin-bottom: 0.75rem;
+}
+
+.ownerGroupHeader h4 {
+  margin: 0;
+  font-size: 0.9rem;
+  font-family: var(--font-code);
+  color: #204d77;
+}
+
+.ownerGroupHeader p {
+  margin: 0.2rem 0 0;
+  font-size: 0.8rem;
+  color: var(--muted-strong);
 }
 
 .breakdownCard {
@@ -272,6 +307,11 @@
   display: grid;
   gap: 0.7rem;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+}
+
+.primaryGrid {
+  gap: 0.5rem;
+  grid-template-columns: repeat(auto-fit, minmax(165px, 1fr));
 }
 
 .primaryGrid dt,
@@ -441,5 +481,11 @@
   .codeCell {
     width: 43%;
     min-width: 180px;
+  }
+}
+
+@media (min-width: 1080px) {
+  .primaryGrid {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
   }
 }

@@ -1,4 +1,4 @@
-export type InputMode = 'owner';
+export type InputMode = 'owner' | 'ownerBatch';
 
 export type LiveCluster = {
   id: string;
@@ -124,6 +124,12 @@ export type EstimateResponse = {
   runwayDays: number;
   clusters: ClusterEstimateResponseItem[];
   totalEstimatedDepositWei: string;
+  ownersRequested: string[];
+  ownersSucceeded: string[];
+  failedOwners: Array<{
+    ownerAddress: string;
+    error: string;
+  }>;
   configUsed: {
     networkFeeWei: string;
     minimumLiquidationCollateralWei: string;
@@ -141,7 +147,8 @@ export type EstimateResponse = {
 };
 
 export type EstimateRequestBody = {
-  ownerAddress: string;
+  ownerAddress?: string;
+  ownerAddresses?: string[];
   runwayDays: number;
   overrides?: ForecastOverrides;
 };

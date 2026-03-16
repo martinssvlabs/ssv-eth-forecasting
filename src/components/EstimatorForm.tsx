@@ -35,6 +35,13 @@ type FieldLabelProps = {
   tooltip: string;
 };
 
+type ParsedOwnerInput = {
+  valid: string[];
+  invalid: string[];
+  duplicatesRemoved: number;
+  totalProvided: number;
+};
+
 const FieldLabel = ({ label, tooltip }: FieldLabelProps) => {
   return (
     <span className={styles.fieldLabel}>
@@ -187,13 +194,47 @@ const shortenClusterId = (clusterId: string): string => {
   return `${clusterId.slice(0, 12)}...${clusterId.slice(-8)}`;
 };
 
+const parseOwnerInput = (value: string): ParsedOwnerInput => {
+  const tokens = value
+    .split(/[\s,;]+/g)
+    .map((token) => token.trim())
+    .filter((token) => token.length > 0);
+
+  const seen = new Set<string>();
+  const valid: string[] = [];
+  const invalid: string[] = [];
+  let duplicatesRemoved = 0;
+
+  for (const token of tokens) {
+    const normalized = token.toLowerCase();
+    if (seen.has(normalized)) {
+      duplicatesRemoved += 1;
+      continue;
+    }
+    seen.add(normalized);
+
+    if (isAddress(normalized)) {
+      valid.push(normalized);
+    } else {
+      invalid.push(token);
+    }
+  }
+
+  return {
+    valid,
+    invalid,
+    duplicatesRemoved,
+    totalProvided: tokens.length,
+  };
+};
+
 export function EstimatorForm({ defaults }: EstimatorFormProps) {
   const defaultAdvancedState = useMemo(
     () => toDefaultAdvancedState(defaults),
     [defaults],
   );
 
-  const [ownerAddress, setOwnerAddress] = useState('');
+  const [ownerInput, setOwnerInput] = useState('');
   const [runwayDays, setRunwayDays] = useState(defaults.defaultRunwayDays);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [networkFeeEthPerYear, setNetworkFeeEthPerYear] = useState(
@@ -278,37 +319,48 @@ export function EstimatorForm({ defaults }: EstimatorFormProps) {
     }
     return next;
   }, [manualOperatorFeesEthYearById, manualOperatorRows]);
-  const normalizedOwnerInput = ownerAddress.trim().toLowerCase();
+  const parsedOwners = useMemo(() => parseOwnerInput(ownerInput), [ownerInput]);
+  const singleValidOwner =
+    parsedOwners.invalid.length === 0 && parsedOwners.valid.length === 1
+      ? parsedOwners.valid[0]
+      : null;
   const hasBaselineForCurrentOwner =
-    normalizedOwnerInput.length > 0 &&
-    normalizedOwnerInput === lastEstimatedOwner &&
+    singleValidOwner !== null &&
+    singleValidOwner === lastEstimatedOwner &&
     manualOperatorRows.length > 0;
-  const manualToggleHint = hasBaselineForCurrentOwner
-    ? 'Manual operator fee override is available for this owner.'
-    : 'To use manual operator fees, first click Calculate estimate for this owner. The toggle unlocks after cluster data is loaded.';
+  const manualToggleHint = (() => {
+    if (singleValidOwner === null) {
+      return 'Manual operator fee override is available only when estimating one valid owner address.';
+    }
+    if (hasBaselineForCurrentOwner) {
+      return 'Manual operator fee override is available for this owner.';
+    }
+    return 'To use manual operator fees, first click Calculate estimate for this owner. The toggle unlocks after cluster data is loaded.';
+  })();
 
   const ownerAddressHint = useMemo(() => {
-    const trimmed = ownerAddress.trim();
-
-    if (!trimmed) {
+    if (parsedOwners.totalProvided === 0) {
       return {
-        text: 'Enter the wallet address that owns the clusters.',
+        text: 'Enter one or more wallet addresses (separated by comma, space, or new line).',
         tone: 'neutral' as const,
       };
     }
 
-    if (isAddress(trimmed)) {
+    if (parsedOwners.invalid.length > 0) {
       return {
-        text: 'Address format looks valid.',
-        tone: 'valid' as const,
+        text: `${parsedOwners.invalid.length} invalid address${parsedOwners.invalid.length === 1 ? '' : 'es'} detected.`,
+        tone: 'error' as const,
       };
     }
 
     return {
-      text: 'Address is not a valid EVM address.',
-      tone: 'error' as const,
+      text:
+        parsedOwners.valid.length === 1
+          ? '1 valid owner address detected.'
+          : `${parsedOwners.valid.length} valid owner addresses detected.`,
+      tone: 'valid' as const,
     };
-  }, [ownerAddress]);
+  }, [parsedOwners]);
 
   useEffect(() => {
     if (manualOperatorRows.length === 0) return;
@@ -441,11 +493,11 @@ export function EstimatorForm({ defaults }: EstimatorFormProps) {
     }
 
     if (manualOperatorFeeOverrideEnabled) {
-      const normalizedOwner = ownerAddress.trim().toLowerCase();
       if (
         manualOperatorRows.length === 0 ||
         !lastEstimatedOwner ||
-        normalizedOwner !== lastEstimatedOwner
+        !singleValidOwner ||
+        singleValidOwner !== lastEstimatedOwner
       ) {
         throw new Error(
           'Manual operator override requires a baseline estimate for the same owner. Run once with live fees first.',
@@ -489,13 +541,13 @@ export function EstimatorForm({ defaults }: EstimatorFormProps) {
     event.preventDefault();
     setSubmitAttempted(true);
 
-    if (!ownerAddress.trim()) {
-      setError('Owner address is required');
+    if (parsedOwners.valid.length === 0) {
+      setError('At least one valid owner address is required');
       return;
     }
 
-    if (!isAddress(ownerAddress.trim())) {
-      setError('Owner address is not a valid EVM address');
+    if (parsedOwners.invalid.length > 0) {
+      setError('Fix invalid owner addresses before calculating the estimate');
       return;
     }
 
@@ -505,6 +557,13 @@ export function EstimatorForm({ defaults }: EstimatorFormProps) {
     }
 
     if (manualOperatorFeeOverrideEnabled) {
+      if (parsedOwners.valid.length !== 1) {
+        setError(
+          'Manual operator fee override is available only for single-owner estimates',
+        );
+        return;
+      }
+
       const hasManualFeeErrors = manualOperatorRows.some(
         (row) => manualOperatorFeeErrorsById[row.operatorId] !== null,
       );
@@ -537,7 +596,9 @@ export function EstimatorForm({ defaults }: EstimatorFormProps) {
           'content-type': 'application/json',
         },
         body: JSON.stringify({
-          ownerAddress: ownerAddress.trim(),
+          ...(parsedOwners.valid.length === 1
+            ? { ownerAddress: parsedOwners.valid[0] }
+            : { ownerAddresses: parsedOwners.valid }),
           runwayDays,
           overrides,
         }),
@@ -552,7 +613,7 @@ export function EstimatorForm({ defaults }: EstimatorFormProps) {
       }
 
       setResult(json);
-      setLastEstimatedOwner(ownerAddress.trim().toLowerCase());
+      setLastEstimatedOwner(parsedOwners.valid.length === 1 ? parsedOwners.valid[0] : null);
       setShouldScrollToResults(true);
       setSubmitAttempted(false);
     } catch (err) {
@@ -598,20 +659,26 @@ export function EstimatorForm({ defaults }: EstimatorFormProps) {
         <form className={styles.form} onSubmit={onSubmit}>
           <label className={styles.field}>
             <FieldLabel
-              label="Owner address"
-              tooltip="Wallet address that owns the SSV clusters. The app fetches all clusters for this owner on mainnet."
+              label="Owner address(es)"
+              tooltip="Wallet address(es) that own SSV clusters. Use comma, space, or new lines to estimate multiple owners in one run."
             />
-            <input
-              type="text"
-              value={ownerAddress}
-              onChange={(event) => setOwnerAddress(event.target.value)}
-              placeholder="0x... (owner address)"
+            <textarea
+              value={ownerInput}
+              onChange={(event) => setOwnerInput(event.target.value)}
+              placeholder={`0x... (owner 1)\n0x... (owner 2)`}
+              rows={Math.max(2, Math.min(6, parsedOwners.valid.length + parsedOwners.invalid.length + 1))}
             />
             <small
               className={`${styles.fieldHint} ${styles[`fieldHint_${ownerAddressHint.tone}`]}`}
             >
               {ownerAddressHint.text}
             </small>
+            {parsedOwners.totalProvided > 0 ? (
+              <small className={styles.fieldHint}>
+                Valid: {parsedOwners.valid.length} • Invalid: {parsedOwners.invalid.length} •
+                Duplicates removed: {parsedOwners.duplicatesRemoved}
+              </small>
+            ) : null}
           </label>
 
           <label className={styles.field}>
@@ -659,7 +726,9 @@ export function EstimatorForm({ defaults }: EstimatorFormProps) {
             <small className={styles.fieldHint}>
               {hasBaselineForCurrentOwner
                 ? 'Default mode uses live operator fees. Manual mode is optional and only affects this estimate run.'
-                : 'Run a baseline estimate first to enable manual operator fee override for this owner.'}
+                : singleValidOwner === null
+                  ? 'Manual override is available only for a single valid owner address.'
+                  : 'Run a baseline estimate first to enable manual operator fee override for this owner.'}
             </small>
 
             {manualOperatorFeeOverrideEnabled ? (

@@ -101,6 +101,7 @@
 }
 
 .field input,
+.field textarea,
 .field select {
   width: 100%;
   border: 1px solid #caddf1;
@@ -117,10 +118,17 @@
 }
 
 .field input:focus,
+.field textarea:focus,
 .field select:focus {
   outline: none;
   border-color: #77a9da;
   box-shadow: 0 0 0 3px rgb(119 169 218 / 20%);
+}
+
+.field textarea {
+  resize: vertical;
+  min-height: 4.5rem;
+  font-family: var(--font-code);
 }
 
 .fieldInputError,
