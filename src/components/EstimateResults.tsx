@@ -1,6 +1,6 @@
 'use client';
 
-import { Fragment } from 'react';
+import { Fragment, useEffect, useMemo, useState } from 'react';
 import type { EstimateResponse } from '@/lib/estimate/types';
 import { formatEther, formatUnits } from 'viem';
 import styles from './EstimateResults.module.css';
@@ -9,6 +9,12 @@ type EstimateResultsProps = {
   result: EstimateResponse | null;
   loading: boolean;
   error: string | null;
+};
+
+type OwnerGroup = {
+  owner: string;
+  clusters: EstimateResponse['clusters'];
+  subtotalEstimatedWei: bigint;
 };
 
 const SUMMARY_DECIMALS = 4;
@@ -168,6 +174,43 @@ const SectionHeader = ({
   </div>
 );
 
+const sortClustersForDisplay = (
+  clusters: EstimateResponse['clusters'],
+): EstimateResponse['clusters'] => {
+  return [...clusters].sort((a, b) => {
+    if ((a.owner ?? '') !== (b.owner ?? '')) {
+      return (a.owner ?? '').localeCompare(b.owner ?? '');
+    }
+    const aWei = BigInt(a.breakdown.estimatedDepositWei);
+    const bWei = BigInt(b.breakdown.estimatedDepositWei);
+    if (aWei === bWei) return 0;
+    return aWei > bWei ? -1 : 1;
+  });
+};
+
+const buildOwnerGroups = (
+  clusters: EstimateResponse['clusters'],
+): OwnerGroup[] => {
+  const sortedClusters = sortClustersForDisplay(clusters);
+  const groups = new Map<string, EstimateResponse['clusters']>();
+
+  for (const cluster of sortedClusters) {
+    const owner = cluster.owner ?? 'unknown';
+    const current = groups.get(owner) ?? [];
+    current.push(cluster);
+    groups.set(owner, current);
+  }
+
+  return Array.from(groups.entries()).map(([owner, groupedClusters]) => ({
+    owner,
+    clusters: groupedClusters,
+    subtotalEstimatedWei: groupedClusters.reduce(
+      (sum, cluster) => sum + BigInt(cluster.breakdown.estimatedDepositWei),
+      0n,
+    ),
+  }));
+};
+
 const BreakdownCard = ({
   cluster,
   configUsed,
@@ -309,6 +352,36 @@ const BreakdownCard = ({
 };
 
 export function EstimateResults({ result, loading, error }: EstimateResultsProps) {
+  const ownerGroups = useMemo(
+    () => (result ? buildOwnerGroups(result.clusters) : []),
+    [result],
+  );
+  const [ownerExpandedById, setOwnerExpandedById] = useState<
+    Record<string, boolean>
+  >({});
+
+  useEffect(() => {
+    if (ownerGroups.length === 0) {
+      setOwnerExpandedById({});
+      return;
+    }
+
+    setOwnerExpandedById((current) => {
+      const next: Record<string, boolean> = {};
+      for (const group of ownerGroups) {
+        next[group.owner] = current[group.owner] ?? true;
+      }
+      return next;
+    });
+  }, [ownerGroups]);
+
+  const toggleOwnerExpanded = (owner: string) => {
+    setOwnerExpandedById((current) => ({
+      ...current,
+      [owner]: !(current[owner] ?? true),
+    }));
+  };
+
   let summaryContent;
   let detailContent;
 
@@ -361,32 +434,7 @@ export function EstimateResults({ result, loading, error }: EstimateResultsProps
     );
     const operatorFeeRateStale = result.configUsed.operatorFeeSsvToEthRateStale;
     const manualModeActive = result.configUsed.operatorFeeSource === 'manualOverride';
-    const sortedClusters = [...result.clusters].sort((a, b) => {
-      if ((a.owner ?? '') !== (b.owner ?? '')) {
-        return (a.owner ?? '').localeCompare(b.owner ?? '');
-      }
-      const aWei = BigInt(a.breakdown.estimatedDepositWei);
-      const bWei = BigInt(b.breakdown.estimatedDepositWei);
-      if (aWei === bWei) return 0;
-      return aWei > bWei ? -1 : 1;
-    });
-    const ownerGroups = (() => {
-      const groups = new Map<string, EstimateResponse['clusters']>();
-      for (const cluster of sortedClusters) {
-        const owner = cluster.owner ?? 'unknown';
-        const current = groups.get(owner) ?? [];
-        current.push(cluster);
-        groups.set(owner, current);
-      }
-      return Array.from(groups.entries()).map(([owner, clusters]) => ({
-        owner,
-        clusters,
-        subtotalEstimatedWei: clusters.reduce(
-          (sum, cluster) => sum + BigInt(cluster.breakdown.estimatedDepositWei),
-          0n,
-        ),
-      }));
-    })();
+    const sortedClusters = ownerGroups.flatMap((group) => group.clusters);
     const showOwnerColumn = ownerGroups.length > 1;
 
     const totals = result.clusters.reduce(
@@ -533,21 +581,41 @@ export function EstimateResults({ result, loading, error }: EstimateResultsProps
             {ownerGroups.map((group) => (
               <section key={group.owner} className={styles.ownerGroupSection}>
                 <header className={styles.ownerGroupHeader}>
-                  <h4 title={group.owner}>{group.owner}</h4>
-                  <p>
-                    {group.clusters.length} clusters • subtotal{' '}
-                    {formatEth(group.subtotalEstimatedWei.toString())} ETH
-                  </p>
+                  <div className={styles.ownerGroupHeaderLeft}>
+                    <h4 title={group.owner}>{group.owner}</h4>
+                    <p>
+                      {group.clusters.length} clusters • subtotal{' '}
+                      {formatEth(group.subtotalEstimatedWei.toString())} ETH
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    className={styles.ownerToggleButton}
+                    onClick={() => toggleOwnerExpanded(group.owner)}
+                    aria-expanded={ownerExpandedById[group.owner] ?? true}
+                    aria-label={
+                      (ownerExpandedById[group.owner] ?? true)
+                        ? `Collapse owner ${group.owner}`
+                        : `Expand owner ${group.owner}`
+                    }
+                    title={(ownerExpandedById[group.owner] ?? true) ? 'Collapse' : 'Expand'}
+                  >
+                    <span className={styles.ownerToggleIcon} aria-hidden="true">
+                      {(ownerExpandedById[group.owner] ?? true) ? '▾' : '▸'}
+                    </span>
+                  </button>
                 </header>
-                <div className={styles.cards}>
-                  {group.clusters.map((cluster) => (
-                    <BreakdownCard
-                      key={cluster.clusterId}
-                      cluster={cluster}
-                      configUsed={result.configUsed}
-                    />
-                  ))}
-                </div>
+                {(ownerExpandedById[group.owner] ?? true) ? (
+                  <div className={styles.cards}>
+                    {group.clusters.map((cluster) => (
+                      <BreakdownCard
+                        key={cluster.clusterId}
+                        cluster={cluster}
+                        configUsed={result.configUsed}
+                      />
+                    ))}
+                  </div>
+                ) : null}
               </section>
             ))}
           </div>
