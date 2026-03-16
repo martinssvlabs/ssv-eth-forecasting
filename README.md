@@ -88,6 +88,61 @@ runwayFundingWei = floor(
 estimatedDepositWei = runwayFundingWei + liquidationCollateralWei
 ```
 
+### Step-by-Step Intuition
+
+This is the same model in user-facing terms:
+
+1) Convert effective balance into billing units
+
+```text
+billingUnits = effectiveBalance / 32
+```
+
+In code, this is floored to an integer and clamped to at least `1`.
+
+Why `/ 32` after Pectra?
+- `32 ETH` is the billing unit used by the model.
+- Even if a validator can hold more than `32 ETH` effective balance, billing scales linearly by effective balance in `32 ETH` units.
+
+2) Annual burn
+
+```text
+annualBurn =
+  (annualOperatorFees + annualNetworkFeePer32Unit) * billingUnits
+```
+
+3) Daily burn
+
+```text
+dailyBurn = annualBurn / 365
+```
+
+4) Collateral
+
+```text
+collateral = max(minimumCollateralFloor, dailyBurn * collateralDays)
+```
+
+Equivalent block form used directly in code:
+
+```text
+collateral = max(minimumCollateralFloor, burnPerBlock * liquidationThresholdBlocks)
+```
+
+5) Runway funding
+
+```text
+runwayFunding = annualBurn * runwayDays / 365
+```
+
+6) Required deposit
+
+```text
+requiredDeposit = runwayFunding + collateral
+```
+
+This matches the estimator structure: runway (operational funding) plus collateral (liquidation protection buffer).
+
 ### Manual Operator Override Conversion
 
 Default behavior starts from live operator fees and converts them to ETH first.
