@@ -16,6 +16,8 @@ type GetClustersSubgraphData = {
 type SsvApiOwnerCluster = {
   clusterId: string;
   operators: number[];
+  active?: boolean;
+  validatorCount?: number;
 };
 
 type SsvApiOwnerClustersResponse = {
@@ -52,6 +54,14 @@ const GWEI_PER_ETH = 1_000_000_000n;
 const SUBGRAPH_PAGE_SIZE = 100;
 const API_PAGE_SIZE = 100;
 const BALANCE_FETCH_BATCH_SIZE = 10;
+const CLUSTER_HASH_REGEX = /^0x[0-9a-f]{64}$/i;
+
+type ClusterSeed = {
+  clusterHash: string;
+  operatorIds: string[];
+  active: boolean;
+  validatorCount: string;
+};
 
 const operatorSetKey = (operatorIds: string[]): string => {
   return [...operatorIds]
@@ -60,6 +70,8 @@ const operatorSetKey = (operatorIds: string[]): string => {
     .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }))
     .join(',');
 };
+
+const isClusterHash = (value: string): boolean => CLUSTER_HASH_REGEX.test(value);
 
 const gweiToEth = (gweiValue: string): string => {
   const gwei = BigInt(gweiValue);
@@ -75,6 +87,11 @@ const gweiToEth = (gweiValue: string): string => {
   }
 
   return `${whole}.${fraction.toString().padStart(9, '0').replace(/0+$/, '')}`;
+};
+
+const isPositiveNumericString = (value: string): boolean => {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed > 0;
 };
 
 const fetchClustersFromSubgraph = async (
@@ -175,53 +192,70 @@ const mapOperatorSetToClusterHash = (
   return result;
 };
 
-const attachApiEffectiveBalance = async (
+const toApiClusterSeeds = (apiClusters: SsvApiOwnerCluster[]): ClusterSeed[] => {
+  return apiClusters.map((cluster) => ({
+    clusterHash: cluster.clusterId,
+    operatorIds: cluster.operators.map((id) => id.toString()),
+    active: cluster.active ?? true,
+    validatorCount: String(cluster.validatorCount ?? 0),
+  }));
+};
+
+const toSubgraphClusterSeeds = (
   subgraphClusters: SubgraphCluster[],
-  operatorSetToClusterHash: Map<string, string>,
+  operatorSetToClusterHash?: Map<string, string>,
+): ClusterSeed[] => {
+  return subgraphClusters.map((cluster) => {
+    const key = operatorSetKey(cluster.operatorIds);
+    const clusterHash =
+      operatorSetToClusterHash?.get(key) ??
+      (isClusterHash(cluster.id) ? cluster.id : undefined);
+    if (!clusterHash) {
+      throw new Error(
+        `Could not match subgraph cluster to SSV API cluster for operators [${cluster.operatorIds.join(', ')}]`,
+      );
+    }
+    return {
+      clusterHash,
+      operatorIds: cluster.operatorIds,
+      active: cluster.active,
+      validatorCount: cluster.validatorCount,
+    };
+  });
+};
+
+const attachApiClusterData = async (
+  clusters: ClusterSeed[],
 ): Promise<
   Array<
-    SubgraphCluster & {
+    ClusterSeed & {
       clusterHash: string;
       effectiveBalanceEth: string;
       activeValidatorCount: string;
     }
   >
 > => {
-  const clusterHashes: string[] = [];
-  for (const cluster of subgraphClusters) {
-    const key = operatorSetKey(cluster.operatorIds);
-    const clusterHash = operatorSetToClusterHash.get(key);
-    if (!clusterHash) {
-      throw new Error(
-        `Could not match subgraph cluster to SSV API cluster for operators [${cluster.operatorIds.join(', ')}]`,
-      );
-    }
-    clusterHashes.push(clusterHash);
-  }
-
   const result: Array<
-    SubgraphCluster & {
+    ClusterSeed & {
       clusterHash: string;
       effectiveBalanceEth: string;
       activeValidatorCount: string;
     }
   > = [];
 
-  for (let i = 0; i < subgraphClusters.length; i += BALANCE_FETCH_BATCH_SIZE) {
-    const subgraphBatch = subgraphClusters.slice(i, i + BALANCE_FETCH_BATCH_SIZE);
-    const clusterHashBatch = clusterHashes.slice(i, i + BALANCE_FETCH_BATCH_SIZE);
+  for (let i = 0; i < clusters.length; i += BALANCE_FETCH_BATCH_SIZE) {
+    const clusterBatch = clusters.slice(i, i + BALANCE_FETCH_BATCH_SIZE);
 
     const enriched = await Promise.all(
-      subgraphBatch.map(async (cluster, idx) => {
-        const clusterHash = clusterHashBatch[idx];
+      clusterBatch.map(async (cluster) => {
         const [effectiveBalanceEth, activeValidatorCount] = await Promise.all([
-          fetchClusterEffectiveBalanceEth(clusterHash),
-          fetchClusterActiveValidatorsCount(clusterHash),
+          fetchClusterEffectiveBalanceEth(cluster.clusterHash),
+          fetchClusterActiveValidatorsCount(cluster.clusterHash),
         ]);
 
         return {
           ...cluster,
-          clusterHash,
+          clusterHash: cluster.clusterHash,
           effectiveBalanceEth,
           activeValidatorCount,
         };
@@ -237,18 +271,68 @@ const attachApiEffectiveBalance = async (
 export const getClustersByOwner = async (owner: string): Promise<LiveCluster[]> => {
   const normalizedOwner = owner.toLowerCase();
 
-  const [subgraphClusters, apiOwnerClusters] = await Promise.all([
-    fetchClustersFromSubgraph(normalizedOwner),
-    fetchOwnerClustersFromApi(normalizedOwner),
-  ]);
+  let subgraphClusters: SubgraphCluster[] = [];
+  let subgraphError: Error | null = null;
+  try {
+    subgraphClusters = await fetchClustersFromSubgraph(normalizedOwner);
+  } catch (error) {
+    subgraphError = error instanceof Error ? error : new Error('Unknown subgraph error');
+  }
 
-  const operatorSetToClusterHash = mapOperatorSetToClusterHash(apiOwnerClusters);
-  const clustersWithBalance = await attachApiEffectiveBalance(
-    subgraphClusters,
-    operatorSetToClusterHash,
+  let apiOwnerClusters: SsvApiOwnerCluster[] = [];
+  let apiError: Error | null = null;
+  try {
+    apiOwnerClusters = await fetchOwnerClustersFromApi(normalizedOwner);
+  } catch (error) {
+    apiError = error instanceof Error ? error : new Error('Unknown SSV API error');
+  }
+
+  if (subgraphClusters.length === 0 && apiOwnerClusters.length === 0) {
+    if (subgraphError || apiError) {
+      throw new Error(
+        `Could not load clusters from upstream data sources. Subgraph: ${subgraphError?.message ?? 'n/a'} | SSV API: ${apiError?.message ?? 'n/a'}`,
+      );
+    }
+
+    throw new Error('No clusters found for the given owner address');
+  }
+
+  const clusterSeeds = (() => {
+    if (subgraphClusters.length === 0) {
+      return toApiClusterSeeds(apiOwnerClusters);
+    }
+
+    try {
+      const operatorSetToClusterHash =
+        apiOwnerClusters.length > 0
+          ? mapOperatorSetToClusterHash(apiOwnerClusters)
+          : undefined;
+      return toSubgraphClusterSeeds(subgraphClusters, operatorSetToClusterHash);
+    } catch {
+      if (apiOwnerClusters.length > 0) {
+        return toApiClusterSeeds(apiOwnerClusters);
+      }
+      throw new Error(
+        'Could not resolve cluster IDs from subgraph data for the given owner address',
+      );
+    }
+  })();
+
+  const clustersWithBalance = await attachApiClusterData(clusterSeeds);
+
+  const estimableClusters = clustersWithBalance.filter(
+    (cluster) =>
+      isPositiveNumericString(cluster.effectiveBalanceEth) &&
+      isPositiveNumericString(cluster.activeValidatorCount),
   );
 
-  return clustersWithBalance.map((cluster) => ({
+  if (estimableClusters.length === 0) {
+    throw new Error(
+      'No estimable clusters found for this owner (all discovered clusters have zero effective balance or zero active validators).',
+    );
+  }
+
+  return estimableClusters.map((cluster) => ({
     id: cluster.clusterHash,
     owner: normalizedOwner,
     operatorIds: cluster.operatorIds,

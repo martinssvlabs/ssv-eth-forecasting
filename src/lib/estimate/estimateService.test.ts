@@ -24,11 +24,15 @@ const mockDataSource: ForecastDataSource = {
     ];
   },
   async getOperators(operatorIds: string[]) {
-    if (operatorIds[0] === '1') {
-      return operatorIds.map((id) => ({ id, fee: '0', isPrivate: true }));
-    }
-
-    return operatorIds.map((id) => ({ id, fee: '1000000000', isPrivate: false }));
+    return operatorIds.map((id) => {
+      const numericId = Number(id);
+      const isPrivateZero = Number.isFinite(numericId) && numericId <= 4;
+      return {
+        id,
+        fee: isPrivateZero ? '0' : '1000000000',
+        isPrivate: isPrivateZero,
+      };
+    });
   },
   async getSsvToEthRateWei() {
     return {

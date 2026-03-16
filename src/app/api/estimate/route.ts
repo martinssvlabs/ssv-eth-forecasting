@@ -91,12 +91,27 @@ export async function POST(request: Request) {
         ? error.message
         : 'Unknown error while calculating the estimate';
 
+    const clientErrorHints = [
+      'must be',
+      'No clusters found',
+      'No estimable clusters found',
+      'not found',
+      'required',
+    ];
+
     const status =
-      message.includes('must be') ||
-      message.includes('No clusters found') ||
-      message.includes('not found')
-        ? 400
-        : 500;
+      clientErrorHints.some((hint) => message.includes(hint)) ? 400 : 500;
+
+    if (status === 500) {
+      console.error('Estimate API internal error', error);
+      return Response.json(
+        {
+          error:
+            'Internal data source error while calculating estimate. Please retry in a moment.',
+        },
+        { status },
+      );
+    }
 
     return Response.json({ error: message }, { status });
   }

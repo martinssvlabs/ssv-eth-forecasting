@@ -9,8 +9,28 @@ type GraphQLResponse<T> = {
   errors?: GraphQLError[];
 };
 
+const REQUEST_TIMEOUT_MS = 12_000;
+
 const trimTrailingSlashes = (value: string): string => {
   return value.replace(/\/+$/, '');
+};
+
+const fetchWithTimeout = async (
+  input: string,
+  init: RequestInit,
+  timeoutMs = REQUEST_TIMEOUT_MS,
+): Promise<Response> => {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    return await fetch(input, {
+      ...init,
+      signal: controller.signal,
+    });
+  } finally {
+    clearTimeout(timeout);
+  }
 };
 
 export const querySSVSubgraph = async <T>(
@@ -25,7 +45,7 @@ export const querySSVSubgraph = async <T>(
     headers.authorization = `Bearer ${forecastConfig.ssvSubgraphApiKey}`;
   }
 
-  const response = await fetch(forecastConfig.ssvSubgraphUrl, {
+  const response = await fetchWithTimeout(forecastConfig.ssvSubgraphUrl, {
     method: 'POST',
     headers,
     cache: 'no-store',
@@ -65,7 +85,7 @@ export const querySSVApi = async <T>(
     }
   }
 
-  const response = await fetch(url.toString(), {
+  const response = await fetchWithTimeout(url.toString(), {
     method: 'GET',
     cache: 'no-store',
   });

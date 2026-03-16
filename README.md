@@ -19,9 +19,9 @@ For **mainnet pre-migration forecasting**, those ETH-era values are not fully li
 
 - Estimate all clusters by owner address + total
 - Runway input (default: 365 days)
-- Advanced protocol-parameter overrides (UI in gwei/ETH/days, converted internally)
+- Advanced forecast parameter overrides in staker-friendly ETH/day units
 - ETH-first per-cluster breakdown (estimated deposit, runway funding, collateral used)
-- Operational context per cluster (validator count, validator units, burn rate in ETH/day + ETH/year)
+- Operational context per cluster (active validators, burn rate in ETH/day + ETH/year)
 - Collapsible protocol details (gwei/block and block-based internals)
 - Optional manual operator fee override mode for explicit scenario testing (off by default)
 - Operator fee source badges (private zero / live / manual override)
@@ -179,10 +179,11 @@ totalEstimatedDepositWei = sum(cluster.estimatedDepositWei)
 
 ### Effective Balance Source
 
-- Cluster inventory and operator composition are fetched from the mainnet subgraph.
+- Cluster inventory is fetched from the mainnet subgraph with API fallback when needed.
 - Cluster **total effective balance** is fetched from SSV API v4:
   - `GET /api/v4/{network}/clusters/{clusterHash}/totalEffectiveBalance`
 - SSV API returns effective balance in `gwei`; the app converts it to `ETH` before the runway formula is applied.
+- Clusters with zero effective balance or zero active validators are excluded from estimation output.
 
 ### Rounding and Integer Behavior
 

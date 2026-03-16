@@ -27,6 +27,7 @@ type BinanceTickerResponse = {
 };
 
 let cachedRate: CachedRate | null = null;
+let inFlightRate: Promise<SsvToEthRate> | null = null;
 
 const isPositiveFiniteNumber = (value: unknown): value is number => {
   return typeof value === 'number' && Number.isFinite(value) && value > 0;
@@ -166,31 +167,42 @@ export const getSsvToEthRateWei = async (): Promise<SsvToEthRate> => {
     return activeCache;
   }
 
-  const errors: string[] = [];
-  const providers: Array<() => Promise<SsvToEthRate>> = [
-    fetchFromCoinGecko,
-    fetchFromBinanceDerived,
-  ];
+  if (inFlightRate) {
+    return inFlightRate;
+  }
 
-  for (const provider of providers) {
-    try {
-      const value = await provider();
-      saveCachedRate(value);
-      return value;
-    } catch (error) {
-      errors.push(error instanceof Error ? error.message : 'unknown provider error');
+  inFlightRate = (async () => {
+    const errors: string[] = [];
+    const providers: Array<() => Promise<SsvToEthRate>> = [
+      fetchFromCoinGecko,
+      fetchFromBinanceDerived,
+    ];
+
+    for (const provider of providers) {
+      try {
+        const value = await provider();
+        saveCachedRate(value);
+        return value;
+      } catch (error) {
+        errors.push(error instanceof Error ? error.message : 'unknown provider error');
+      }
     }
-  }
 
-  if (cachedRate) {
-    return {
-      ...cachedRate.value,
-      stale: true,
-    };
-  }
+    if (cachedRate) {
+      return {
+        ...cachedRate.value,
+        stale: true,
+      };
+    }
 
-  throw new Error(
-    `Could not resolve live SSV/ETH conversion rate from providers. Set SSV_TO_ETH_RATE_WEI as fallback. Details: ${errors.join(' | ')}`,
-  );
+    throw new Error(
+      `Could not resolve live SSV/ETH conversion rate from providers. Set SSV_TO_ETH_RATE_WEI as fallback. Details: ${errors.join(' | ')}`,
+    );
+  })();
+
+  try {
+    return await inFlightRate;
+  } finally {
+    inFlightRate = null;
+  }
 };
-

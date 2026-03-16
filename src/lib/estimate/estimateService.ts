@@ -8,6 +8,7 @@ import type {
   ForecastDataSource,
   ForecastOverrides,
   LiveCluster,
+  LiveOperator,
   SsvToEthRate,
 } from '@/lib/estimate/types';
 import { getClustersByOwner } from '@/lib/ssv/getClustersByOwner';
@@ -65,14 +66,27 @@ const toResponseCluster = (
   })),
 });
 
-const estimateCluster = async (
+const getClusterOperators = (
+  cluster: LiveCluster,
+  operatorsById: Map<string, LiveOperator>,
+): LiveOperator[] => {
+  return cluster.operatorIds.map((operatorId) => {
+    const operator = operatorsById.get(operatorId);
+    if (!operator) {
+      throw new Error(`Missing operator data for operator ID: ${operatorId}`);
+    }
+    return operator;
+  });
+};
+
+const estimateCluster = (
   cluster: LiveCluster,
   runwayDays: number,
   operatorFeeSsvToEthRateWei: bigint,
   overrides: ForecastOverrides | undefined,
-  dataSource: ForecastDataSource,
-): Promise<ClusterEstimateResult> => {
-  const operators = await dataSource.getOperators(cluster.operatorIds);
+  operatorsById: Map<string, LiveOperator>,
+): ClusterEstimateResult => {
+  const operators = getClusterOperators(cluster, operatorsById);
 
   const forecastInput = buildClusterForecastInput({
     cluster,
@@ -175,15 +189,26 @@ export const estimateByOwnerAddress = async (
     throw new Error('No clusters found for the given owner address');
   }
 
-  const estimates = await Promise.all(
-    clusters.map((cluster) =>
-      estimateCluster(
-        cluster,
-        runwayDays,
-        operatorFeeSsvToEthRate.rateWei,
-        overrides,
-        dataSource,
-      ),
+  const uniqueOperatorIds = [...new Set(clusters.flatMap((cluster) => cluster.operatorIds))];
+  const operators = await dataSource.getOperators(uniqueOperatorIds);
+  const operatorsById = new Map(operators.map((operator) => [operator.id, operator]));
+
+  const missingOperatorIds = uniqueOperatorIds.filter(
+    (operatorId) => !operatorsById.has(operatorId),
+  );
+  if (missingOperatorIds.length > 0) {
+    throw new Error(
+      `Missing operator data for operator IDs: ${missingOperatorIds.join(', ')}`,
+    );
+  }
+
+  const estimates = clusters.map((cluster) =>
+    estimateCluster(
+      cluster,
+      runwayDays,
+      operatorFeeSsvToEthRate.rateWei,
+      overrides,
+      operatorsById,
     ),
   );
 
