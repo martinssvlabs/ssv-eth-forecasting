@@ -2,7 +2,7 @@
 
 import { Fragment, useEffect, useMemo, useState } from 'react';
 import type { EstimateResponse } from '@/lib/estimate/types';
-import { formatEther, formatUnits } from 'viem';
+import { formatEther, formatUnits, parseUnits } from 'viem';
 import styles from './EstimateResults.module.css';
 
 type EstimateResultsProps = {
@@ -46,6 +46,14 @@ const formatBalanceEth = (value: string): string => {
     minimumFractionDigits: 0,
     maximumFractionDigits: 4,
   }).format(parsed);
+};
+
+const toGweiOrZero = (value: string): bigint => {
+  try {
+    return parseUnits(value, 9);
+  } catch {
+    return 0n;
+  }
 };
 
 const formatGwei = (valueWei: string, maximumFractionDigits = 4): string => {
@@ -447,9 +455,16 @@ export function EstimateResults({ result, loading, error }: EstimateResultsProps
         acc.network += networkFeeWeiPerBlock * validatorUnits * blocksPerYear;
         acc.runwayFunding += BigInt(cluster.breakdown.runwayFundingWei);
         acc.collateral += BigInt(cluster.breakdown.liquidationCollateralWei);
+        acc.totalEffectiveBalanceGwei += toGweiOrZero(cluster.effectiveBalance);
         return acc;
       },
-      { operator: 0n, network: 0n, runwayFunding: 0n, collateral: 0n },
+      {
+        operator: 0n,
+        network: 0n,
+        runwayFunding: 0n,
+        collateral: 0n,
+        totalEffectiveBalanceGwei: 0n,
+      },
     );
 
     const summaryTooltipText = `Burn is the ongoing operating cost of running the cluster. Collateral is not burned; it is the required balance buffer to avoid liquidation. Total estimated deposit = runway funding + collateral requirement. Minimum collateral floor: ${formatEth(result.configUsed.minimumLiquidationCollateralWei)} ETH.`;
@@ -490,6 +505,10 @@ export function EstimateResults({ result, loading, error }: EstimateResultsProps
             </p>
             <p>
               <strong>Collateral requirement:</strong> {formatEth(totals.collateral.toString(), SUMMARY_DECIMALS)} ETH
+            </p>
+            <p>
+              <strong>Total effective balance:</strong>{' '}
+              {formatBalanceEth(formatUnits(totals.totalEffectiveBalanceGwei, 9))} ETH
             </p>
             <p>
               <strong>Owners processed:</strong> {result.ownersSucceeded.length}/
